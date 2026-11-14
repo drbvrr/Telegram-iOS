@@ -953,6 +953,7 @@ public final class AccountStateManager {
     let auxiliaryMethods: AccountAuxiliaryMethods
     
     public var isUpdating: Signal<Bool, NoError> {
+        if storyAudiencesOfflineDemoEnabled { return .single(false) }
         return self.impl.signalWith { impl, subscriber in
             return impl.isUpdating.start(next: subscriber.putNext, error: subscriber.putError, completed: subscriber.putCompletion)
         }

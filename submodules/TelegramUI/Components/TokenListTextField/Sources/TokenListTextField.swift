@@ -9,6 +9,14 @@ import TelegramCore
 import ComponentDisplayAdapters
 
 public final class TokenListTextField: Component {
+    public struct PlaceholderStyle: Equatable {
+        public let fontSize: CGFloat
+        public let color: UIColor
+        public let showsSeparator: Bool
+        public init(fontSize: CGFloat, color: UIColor, showsSeparator: Bool) {
+            self.fontSize = fontSize; self.color = color; self.showsSeparator = showsSeparator
+        }
+    }
     public final class ExternalState {
         public fileprivate(set) var isFocused: Bool = false
         public fileprivate(set) var text: String = ""
@@ -85,6 +93,7 @@ public final class TokenListTextField: Component {
     public let context: AccountContext
     public let theme: PresentationTheme
     public let placeholder: String
+    public let placeholderStyle: PlaceholderStyle?
     public let tokens: [Token]
     public let sideInset: CGFloat
     // Insets of the tokens and the text beyond `sideInset` (iPhone Duo's side strip, which the field's separator spans).
@@ -98,6 +107,7 @@ public final class TokenListTextField: Component {
         context: AccountContext,
         theme: PresentationTheme,
         placeholder: String,
+        placeholderStyle: PlaceholderStyle? = nil,
         tokens: [Token],
         sideInset: CGFloat,
         leftInset: CGFloat = 0.0,
@@ -109,6 +119,7 @@ public final class TokenListTextField: Component {
         self.context = context
         self.theme = theme
         self.placeholder = placeholder
+        self.placeholderStyle = placeholderStyle
         self.tokens = tokens
         self.sideInset = sideInset
         self.leftInset = leftInset
@@ -127,6 +138,7 @@ public final class TokenListTextField: Component {
         if lhs.theme !== rhs.theme {
             return false
         }
+        if lhs.placeholderStyle != rhs.placeholderStyle { return false }
         if lhs.placeholder != rhs.placeholder {
             return false
         }
@@ -253,6 +265,7 @@ public final class TokenListTextField: Component {
                 )
             }
             
+            tokenListNode.updatePlaceholder(text: component.placeholder, fontSize: component.placeholderStyle?.fontSize ?? 15.0, color: component.placeholderStyle?.color ?? component.theme.list.itemPlaceholderTextColor, showsSeparator: component.placeholderStyle?.showsSeparator ?? true)
             let height = tokenListNode.updateLayout(
                 tokens: mappedTokens,
                 width: availableSize.width,

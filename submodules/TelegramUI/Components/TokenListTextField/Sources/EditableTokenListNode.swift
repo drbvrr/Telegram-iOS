@@ -372,6 +372,12 @@ final class EditableTokenListNode: ASDisplayNode, UITextFieldDelegate {
         self.view.addGestureRecognizer(UITapGestureRecognizer(target: self, action: #selector(self.tapGesture(_:))))
     }
     
+    func updatePlaceholder(text: String, fontSize: CGFloat, color: UIColor, showsSeparator: Bool) {
+        self.placeholderNode.attributedText = NSAttributedString(string: text, font: Font.regular(fontSize), textColor: color)
+        self.textFieldNode.textField.font = Font.regular(fontSize)
+        self.separatorNode.isHidden = !showsSeparator
+    }
+
     func updateLayout(tokens: [EditableTokenListToken], width: CGFloat, leftInset: CGFloat, rightInset: CGFloat, transition: ContainedViewLayoutTransition) -> CGFloat {
         let validTokens = Set<AnyHashable>(tokens.map { $0.id })
         

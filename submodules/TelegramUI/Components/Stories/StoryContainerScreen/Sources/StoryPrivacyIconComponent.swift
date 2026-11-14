@@ -1,5 +1,6 @@
 import Foundation
 import UIKit
+import ShareWithPeersScreen
 import Display
 import ComponentFlow
 import AccountContext
@@ -14,15 +15,22 @@ final class StoryPrivacyIconComponent: Component {
         case contacts
         case selectedContacts
     }
+    let audienceLayout: Bool
     let privacy: Privacy
+    let customImage: UIImage?
+    let customColor: UIColor?
     let isEditable: Bool
     
-    init(privacy: Privacy, isEditable: Bool) {
+    init(privacy: Privacy, isEditable: Bool, audienceLayout: Bool = false, customImage: UIImage? = nil, customColor: UIColor? = nil) {
+        self.audienceLayout = audienceLayout
+        self.customImage = customImage; self.customColor = customColor
         self.privacy = privacy
         self.isEditable = isEditable
     }
 
     static func ==(lhs: StoryPrivacyIconComponent, rhs: StoryPrivacyIconComponent) -> Bool {
+        if lhs.audienceLayout != rhs.audienceLayout { return false }
+        if lhs.customImage != rhs.customImage || lhs.customColor != rhs.customColor { return false }
         if lhs.privacy != rhs.privacy {
             return false
         }
@@ -53,7 +61,7 @@ final class StoryPrivacyIconComponent: Component {
             self.component = component
             self.state = state
             
-            let colors: [CGColor]
+            var colors: [CGColor]
             var icon: UIImage?
             
             if let previousPrivacy, previousPrivacy != component.privacy, !transition.animation.isImmediate {
@@ -93,8 +101,29 @@ final class StoryPrivacyIconComponent: Component {
                 icon = UIImage(bundleImageName: "Stories/PrivacySelectedContacts")
             }
             
-            let size = CGSize(width: component.isEditable ? 40.0 : 24.0, height: 24.0)
-            let iconFrame = CGRect(origin: CGPoint(x: component.isEditable ? 1.0 : 0.0, y: 0.0), size: CGSize(width: size.height, height: size.height))
+            let usesAudienceStyle = component.audienceLayout || component.customColor != nil
+            if usesAudienceStyle && component.customImage == nil {
+                let name: String
+                let stops: (UInt32, UInt32)
+                switch component.privacy {
+                case .everyone: name = "Everyone"; stops = (0x45a7ff, 0x1184ff)
+                case .contacts: name = "My Contacts"; stops = (0xcd7efe, 0xae51dd)
+                case .closeFriends: name = "Close Friends"; stops = (0x57eb73, 0x1ccb46)
+                case .selectedContacts: name = "Person"; stops = (0xf7b73d, 0xf29800)
+                }
+                colors = [UIColor(rgb: stops.0).cgColor, UIColor(rgb: stops.1).cgColor]
+                icon = StoryAudienceGlyphs.image(name, size: 20)
+            }
+            if let customImage = component.customImage { icon = customImage }
+            if let color = component.customColor {
+                if let pair = StoryAudienceAppearance.palette.first(where: { UIColor(rgb: $0.0).isEqual(color) }) { colors = [UIColor(rgb: pair.0).cgColor, UIColor(rgb: pair.1).cgColor] }
+                else { colors = [color.cgColor, color.cgColor] }
+            }
+            let unifiedCapsule = component.isEditable && usesAudienceStyle
+            let size = unifiedCapsule ? CGSize(width:45,height:27) : CGSize(width:component.isEditable ? 40 : 24,height:24)
+            let iconSide: CGFloat = usesAudienceStyle ? 20 : size.height
+            let iconX: CGFloat = unifiedCapsule ? (component.customImage == nil ? 4.5 : 5) : (component.isEditable ? 1 : 0)
+            let iconFrame = CGRect(x: iconX, y: (size.height-iconSide)/2, width:iconSide,height:iconSide)
             self.iconView.image = icon
             self.iconView.bounds = CGRect(origin: .zero, size: iconFrame.size)
             self.iconView.center = iconFrame.center
@@ -113,11 +142,20 @@ final class StoryPrivacyIconComponent: Component {
                 context.addPath(path)
                 context.clip()
                 
-                var locations: [CGFloat] = [1.0, 0.0]
+                var locations: [CGFloat] = usesAudienceStyle ? [0.0, 1.0] : [1.0, 0.0]
                 let colorSpace = CGColorSpaceCreateDeviceRGB()
                 let gradient = CGGradient(colorsSpace: colorSpace, colors: colors as CFArray, locations: &locations)!
                 context.drawLinearGradient(gradient, start: CGPoint(x: 0.0, y: 0.0), end: CGPoint(x: 0.0, y: size.height), options: CGGradientDrawingOptions())
                 
+                if usesAudienceStyle {
+                    context.setFillColor(UIColor.white.withAlphaComponent(0.02).cgColor)
+                    context.fill(bounds)
+                    context.saveGState()
+                    context.addPath(path); context.setLineWidth(1.1); context.replacePathWithStrokedPath(); context.clip()
+                    let rim = CGGradient(colorsSpace: colorSpace, colors: [UIColor.white.withAlphaComponent(0.45).cgColor, UIColor.white.withAlphaComponent(0.05).cgColor, UIColor.white.withAlphaComponent(0.3).cgColor] as CFArray, locations: [0, 0.5, 1])!
+                    context.drawLinearGradient(rim, start: .zero, end: CGPoint(x: size.width, y: size.height), options: [])
+                    context.restoreGState()
+                }
                 if component.isEditable {
                     if let arrowIcon = UIImage(bundleImageName: "Stories/PrivacyDownArrow"), let cgImage = arrowIcon.cgImage {
                         context.draw(cgImage, in: CGRect(origin: CGPoint(x: size.width - arrowIcon.size.width - 6.0, y: floorToScreenPixels((size.height - arrowIcon.size.height) / 2.0)), size: arrowIcon.size))

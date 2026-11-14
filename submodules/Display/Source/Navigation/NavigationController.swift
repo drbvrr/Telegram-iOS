@@ -889,6 +889,11 @@ open class NavigationController: UINavigationController, ContainableController, 
                 topFlatModalHasProgress = modalStyleOverlayTransitionFactor > 0.0
             }
                         
+            if navigationLayout.modal[i].controllers.first?.modalPresentationDimColor != nil {
+                modalContainer.backdropSourceView = (0 ..< i).reversed().compactMap { navigationLayout.modal[$0].controllers.last?.modalPresentationBackdropView }.first
+                // Initialize at the real uncovered surface; after the loop animate with its native transform.
+                modalContainer.updateBackdropFrame(transition: .immediate)
+            }
             containerTransition.updateFrame(node: modalContainer, frame: CGRect(origin: CGPoint(), size: layout.size))
             modalContainer.update(layout: modalContainer.isFlat ? globalOverlayLayout : layout, controllers: navigationLayout.modal[i].controllers, coveredByModalTransition: effectiveModalTransition, transition: containerTransition)
             
@@ -982,6 +987,9 @@ open class NavigationController: UINavigationController, ContainableController, 
             }
         }
         
+        for modalContainer in self.modalContainers where modalContainer.backdropSourceView != nil {
+            modalContainer.updateBackdropFrame(transition: transition)
+        }
         if self.isMaximizing && layout.size.width < layout.size.height {
             modalStyleOverlayTransitionFactor = 1.0
             topFlatModalHasProgress = true

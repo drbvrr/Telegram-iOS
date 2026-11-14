@@ -181,7 +181,16 @@ private struct ItemListRevealOptionLayoutMetrics {
         return floorToScreenPixels((self.slotWidth - self.shapeSize.width) / 2.0)
     }
 
-    static func metrics(for height: CGFloat, hasVisualIcons: Bool) -> ItemListRevealOptionLayoutMetrics {
+    static func metrics(for height: CGFloat, hasVisualIcons: Bool, hasTitle: Bool = true) -> ItemListRevealOptionLayoutMetrics {
+        // Icon-only member actions need no caption slot. Keep the native
+        // circular surface and expansion choreography even on a short row.
+        if hasVisualIcons && !hasTitle {
+            let diameter = min(50.0, max(32.0, height - 4.0))
+            return ItemListRevealOptionLayoutMetrics(shapeSize: CGSize(width: diameter, height: diameter), slotWidth: diameter + 10.0, titleWidth: diameter + 10.0, iconMaxSide: 40.0, cornerRadius: diameter / 2.0, expandedIconInset: diameter / 2.0)
+        }
+        if hasVisualIcons && hasTitle && height <= 54.0 {
+            return ItemListRevealOptionLayoutMetrics(shapeSize: CGSize(width: 32, height: 32), slotWidth: 60, titleWidth: 60, iconMaxSide: 26, cornerRadius: 16, expandedIconInset: 16)
+        }
         let regularShapeSize = CGSize(width: 50.0, height: 50.0)
         let compactShapeSize = CGSize(width: 60.0, height: 32.0)
         let regularContentHeight = regularShapeSize.height + titleSpacing + ceil(titleFont.lineHeight)
@@ -479,7 +488,7 @@ private final class ItemListRevealOptionNode: ASDisplayNode {
 
         let pillSize = metrics.shapeSize
         let shapeY: CGFloat
-        if self.displaysTitleInsidePill {
+        if self.displaysTitleInsidePill || (self.titleNode.attributedText?.length ?? 0) == 0 {
             shapeY = floorToScreenPixels((bounds.height - pillSize.height) / 2.0)
         } else {
             let contentHeight = pillSize.height + titleSpacing + titleSize.height
@@ -641,7 +650,7 @@ private final class ItemListRevealOptionNode: ASDisplayNode {
     }
 
     override func calculateSizeThatFits(_ constrainedSize: CGSize) -> CGSize {
-        let metrics = ItemListRevealOptionLayoutMetrics.metrics(for: constrainedSize.height, hasVisualIcons: !self.displaysTitleInsidePill)
+        let metrics = ItemListRevealOptionLayoutMetrics.metrics(for: constrainedSize.height, hasVisualIcons: !self.displaysTitleInsidePill, hasTitle: (self.titleNode.attributedText?.length ?? 0) > 0)
         return CGSize(width: metrics.slotWidth, height: constrainedSize.height)
     }
 }
@@ -730,7 +739,7 @@ public final class ItemListRevealOptionsNode: ASDisplayNode {
             return currentMetrics.metrics
         }
 
-        let metrics = ItemListRevealOptionLayoutMetrics.metrics(for: containerSize.height, hasVisualIcons: self.options.contains(where: { $0.icon.hasVisualIcon }))
+        let metrics = ItemListRevealOptionLayoutMetrics.metrics(for: containerSize.height, hasVisualIcons: self.options.contains(where: { $0.icon.hasVisualIcon }), hasTitle: self.options.contains(where: { !$0.title.isEmpty }))
         let maxTitleWidth = self.optionNodes.reduce(0.0) { result, node in
             return max(result, node.titleWidthForGroupPillSizing)
         }

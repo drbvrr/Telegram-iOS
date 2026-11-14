@@ -2079,3 +2079,14 @@ filegroup(
     ],
     visibility = ["//submodules/ChatListUI:__pkg__"],
 )
+
+# Offline feasibility host: original Telegram app, simulator-only project graph.
+xcodeproj(
+    name = "StoryAudiencesNative_xcodeproj",
+    bazel_path = telegram_bazel_path,
+    project_name = "StoryAudiencesNative",
+    tags = ["manual"],
+    top_level_targets = [top_level_target(":Telegram", target_environments = ["simulator"])],
+    xcode_configurations = {"Debug": {"//command_line_option:compilation_mode": "dbg"}},
+    default_xcode_configuration = "Debug",
+)

@@ -2181,9 +2181,11 @@ public class ChatListItemNode: ItemListRevealOptionsItemNode {
                 avatarClipStyle = .round
             }
 
+            // Local demo photos use the existing MediaBox-backed AvatarNode
+            // loader (the same path as the contact picker), without a cloud fetch.
             if item.useCommunityViewLayout {
                 self.avatarNode.setPeer(context: item.context, theme: item.presentationData.theme, peer: avatarPeer, overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, clipStyle: avatarClipStyle, synchronousLoad: synchronousLoads, displayDimensions: CGSize(width: avatarDiameter, height: avatarDiameter), cutoutRect: nil)
-            } else if avatarPeer.smallProfileImage != nil && overrideImage == nil {
+            } else if avatarPeer.smallProfileImage != nil && overrideImage == nil && !storyAudiencesOfflineDemoEnabled {
                 self.avatarNode.setPeerV2(context: item.context, theme: item.presentationData.theme, peer: avatarPeer, overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, clipStyle: avatarClipStyle, synchronousLoad: synchronousLoads, displayDimensions: CGSize(width: avatarDiameter, height: avatarDiameter))
             } else {
                 self.avatarNode.setPeer(context: item.context, theme: item.presentationData.theme, peer: avatarPeer, overrideImage: overrideImage, emptyColor: item.presentationData.theme.list.mediaPlaceholderColor, clipStyle: avatarClipStyle, synchronousLoad: synchronousLoads, displayDimensions: CGSize(width: 60.0, height: 60.0))

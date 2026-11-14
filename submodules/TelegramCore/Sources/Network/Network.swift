@@ -450,6 +450,7 @@ func networkEngineRustDisabledReason(appConfiguration: AppConfiguration, engineS
 }
 
 private func resolveNetworkEngine(accountId: AccountRecordId, context: MTContext, factory: NetworkEngineFactory?, settings: NetworkEngineSettings?, rustDisabledReason: String?, isAppExtension: Bool) -> NetworkEngine {
+    if storyAudiencesOfflineDemoEnabled { return StoryAudiencesOfflineNetworkEngine() }
     let preferredEngine = settings?.engine ?? NetworkEngineSettings.defaultSettings.engine
     guard let factory = factory else {
         Logger.shared.log("Network", "Account \(accountId.int64): engine mtProtoKit (no factory, preferred \(preferredEngine.rawValue))")
@@ -554,6 +555,9 @@ func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializa
                 apiEnvironment = apiEnvironment.withUpdatedSocksProxySettings(effectiveActiveServer.mtProxySettings)
             }
             
+            if storyAudiencesOfflineDemoEnabled {
+                apiEnvironment = apiEnvironment.withUpdatedSocksProxySettings(storyAudiencesOfflineDemoProxySettings)
+            }
             apiEnvironment = apiEnvironment.withUpdatedNetworkSettings((networkSettings ?? NetworkSettings.defaultSettings).mtNetworkSettings)
             apiEnvironment.accessHostOverride = networkSettings?.backupHostOverride
             
@@ -658,7 +662,7 @@ func initializedNetwork(accountId: AccountRecordId, arguments: NetworkInitializa
             }
             #endif
             
-            if !supplementary {
+            if !supplementary && !storyAudiencesOfflineDemoEnabled {
                 context.setDiscoverBackupAddressListSignal(MTBackupAddressSignals.fetchBackupIps(testingEnvironment, currentContext: context, additionalSource: wrappedAdditionalSource, phoneNumber: phoneNumber, mainDatacenterId: datacenterId))
                 let externalRequestVerificationStream = arguments.externalRequestVerificationStream
                 context.setExternalRequestVerification({ nonce in
@@ -1190,7 +1194,7 @@ public final class Network: NSObject {
             self.context.makeTcpConnectionInterface = self.baseTcpConnectionInterfaceFactory
         }
 
-        let updated = activeServer?.mtProxySettings
+        let updated = storyAudiencesOfflineDemoEnabled ? storyAudiencesOfflineDemoProxySettings : activeServer?.mtProxySettings
         self.context.updateApiEnvironment { environment in
             let current = environment?.socksProxySettings
             let updateNetwork: Bool

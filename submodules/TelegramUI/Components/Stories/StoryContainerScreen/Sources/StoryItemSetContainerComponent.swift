@@ -476,6 +476,7 @@ public final class StoryItemSetContainerComponent: Component {
         var currentSoundButtonState: Bool?
         let soundButton = ComponentView<Empty>()
         var privacyIcon: ComponentView<Empty>?
+        private var audienceDisposable: Disposable?
         var pictureInPictureIcon: ComponentView<Empty>?
         
         var captionItem: CaptionItem?
@@ -854,6 +855,7 @@ public final class StoryItemSetContainerComponent: Component {
         }
         
         deinit {
+            self.audienceDisposable?.dispose()
             self.audioRecorderDisposable?.dispose()
             self.audioRecorderStatusDisposable?.dispose()
             self.audioRecorderStatusDisposable?.dispose()
@@ -2938,6 +2940,13 @@ public final class StoryItemSetContainerComponent: Component {
             }
             
             let wasPanning = self.component?.isPanning ?? false
+            if self.component == nil, storyAudiencesOfflineDemoEnabled {
+                var isInitialAudienceValue = true
+                self.audienceDisposable = (StoryAudienceStore.forAccount(component.context.account).updated |> deliverOnMainQueue).start(next: { [weak self] _ in
+                    if isInitialAudienceValue { isInitialAudienceValue = false; return }
+                    self?.state?.updated(transition: .easeInOut(duration: 0.2))
+                })
+            }
             self.component = component
             self.state = state
             
@@ -4327,7 +4336,8 @@ public final class StoryItemSetContainerComponent: Component {
                 } else if component.slice.item.storyItem.isContacts {
                     storyPrivacyIcon = .contacts
                 } else if component.slice.item.storyItem.isSelectedContacts {
-                    storyPrivacyIcon = .selectedContacts
+                    // Custom lists are private to their author; recipients get no segment badge.
+                    storyPrivacyIcon = component.slice.effectivePeer.id == component.context.account.peerId || StoryAudienceUIHooks.configuration?(component.context) == nil ? .selectedContacts : nil
                 } else if component.slice.effectivePeer.id == component.context.account.peerId {
                     storyPrivacyIcon = .everyone
                 } else {
@@ -4337,6 +4347,8 @@ public final class StoryItemSetContainerComponent: Component {
                 storyPrivacyIcon = nil
             }
             
+            let audienceConfiguration = StoryAudienceUIHooks.configuration?(component.context)
+            let audience = component.slice.effectivePeer.id == component.context.account.peerId ? audienceConfiguration.flatMap { config in config.store.audience(config.store.value.stories.first(where: { $0.id == component.slice.item.storyItem.id })?.audienceId) } : nil
             if let storyPrivacyIcon {
                 let privacyIcon: ComponentView<Empty>
                 var privacyIconTransition: ComponentTransition = itemChanged ? .immediate : .easeInOut(duration: 0.2)
@@ -4353,7 +4365,10 @@ public final class StoryItemSetContainerComponent: Component {
                         content: AnyComponent(
                             StoryPrivacyIconComponent(
                                 privacy: storyPrivacyIcon,
-                                isEditable: component.slice.effectivePeer.id == component.context.account.peerId
+                                isEditable: component.slice.effectivePeer.id == component.context.account.peerId,
+                                audienceLayout: audienceConfiguration != nil,
+                                customImage: audience.flatMap { audienceConfiguration?.glyph?($0, 20) },
+                                customColor: audience.flatMap { audienceConfiguration?.color($0) }
                             )
                         ),
                         effectAlignment: .center,
@@ -4420,6 +4435,13 @@ public final class StoryItemSetContainerComponent: Component {
                 )
                 let closeFriendIconFrame = CGRect(origin: CGPoint(x: headerRightOffset - privacyIconSize.width - 8.0, y: 22.0), size: privacyIconSize)
                 if let closeFriendIconView = privacyIcon.view {
+                    if component.slice.effectivePeer.id == component.context.account.peerId {
+                        closeFriendIconView.isAccessibilityElement = true
+                        closeFriendIconView.accessibilityLabel = "Story audience"
+                        closeFriendIconView.accessibilityIdentifier = "storyAudienceSwitcher"
+                        closeFriendIconView.accessibilityTraits = .button
+                    }
+
                     if closeFriendIconView.superview == nil {
                         self.controlsClippingView.addSubview(closeFriendIconView)
                     }
@@ -5539,6 +5561,9 @@ public final class StoryItemSetContainerComponent: Component {
             
             let context = component.context
             let currentPrivacy = component.slice.item.storyItem.privacy ?? EngineStoryPrivacy(base: .everyone, additionallyIncludePeers: [])
+            if let config = StoryAudienceUIHooks.configuration?(context) {
+                config.store.select(config.store.value.stories.first(where: { $0.id == component.slice.item.storyItem.id })?.audienceId)
+            }
             
             if component.slice.item.storyItem.privacy == nil {
                 Logger.shared.log("EditStoryPrivacy", "Story privacy is unknown")
@@ -5575,18 +5600,27 @@ public final class StoryItemSetContainerComponent: Component {
                         guard let self, let component = self.component, completed else {
                             return
                         }
+                        if let config = StoryAudienceUIHooks.configuration?(component.context) {
+                            let base: String
+                            switch privacy.base { case .everyone: base = "everyone"; case .contacts: base = "contacts"; case .closeFriends: base = "closeFriends"; case .nobody: base = "nobody" }
+                            config.store.changeStory(id: component.slice.item.storyItem.id, audienceId: config.store.value.selectedId, base: base, members: privacy.additionallyIncludePeers.map { $0.id._internalGetInt64Value() })
+                        }
                         if component.slice.item.storyItem.privacy == privacy {
-                            self.privacyController = nil
-                            self.updateIsProgressPaused()
+                            if StoryAudienceUIHooks.configuration?(context) == nil {
+                                self.privacyController = nil
+                                self.updateIsProgressPaused()
+                            }
                             return
                         }
                         let _ = component.context.engine.messages.editStoryPrivacy(id: component.slice.item.storyItem.id, privacy: privacy).startStandalone()
                         
                         self.presentPrivacyTooltip(privacy: privacy)
                         
-                        self.privacyController = nil
+                        if StoryAudienceUIHooks.configuration?(context) == nil {
+                            self.privacyController = nil
+                            self.updateIsProgressPaused()
+                        }
                         self.rewindCurrentItem()
-                        self.updateIsProgressPaused()
                     },
                     editCategory: { [weak self] privacy, _, _, _ in
                         guard let self else {

@@ -431,6 +431,7 @@ public extension ShareWithPeersScreen {
                         }
                     })
                     peers.insert(contentsOf: selectedPeers, at: 0)
+                    if storyAudiencesOfflineDemoEnabled && base == .nobody { peers.sort { $0.id < $1.id } }
                     
                     let state = State(
                         peers: peers,

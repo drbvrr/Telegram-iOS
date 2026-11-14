@@ -14,6 +14,7 @@ final class SectionHeaderComponent: Component {
     // Insets of the title and the action beyond their margin (iPhone Duo's side strip, which the background spans).
     let leftInset: CGFloat
     let rightInset: CGFloat
+    let audiencePeople: Bool
     
     init(
         theme: PresentationTheme,
@@ -22,7 +23,8 @@ final class SectionHeaderComponent: Component {
         actionTitle: String?,
         action: (() -> Void)?,
         leftInset: CGFloat = 0.0,
-        rightInset: CGFloat = 0.0
+        rightInset: CGFloat = 0.0,
+        audiencePeople: Bool = false
     ) {
         self.theme = theme
         self.style = style
@@ -31,6 +33,7 @@ final class SectionHeaderComponent: Component {
         self.action = action
         self.leftInset = leftInset
         self.rightInset = rightInset
+        self.audiencePeople = audiencePeople
     }
     
     static func ==(lhs: SectionHeaderComponent, rhs: SectionHeaderComponent) -> Bool {
@@ -52,10 +55,12 @@ final class SectionHeaderComponent: Component {
         if lhs.rightInset != rhs.rightInset {
             return false
         }
+        if lhs.audiencePeople != rhs.audiencePeople { return false }
         return true
     }
     
     final class View: UIView {        
+        private let bottomSeparator = CALayer()
         private let title = ComponentView<Empty>()
         private let backgroundView: BlurredBackgroundView
         private let action = ComponentView<Empty>()
@@ -69,6 +74,7 @@ final class SectionHeaderComponent: Component {
             super.init(frame: frame)
             
             self.addSubview(self.backgroundView)
+            self.layer.addSublayer(self.bottomSeparator)
         }
         
         required init?(coder: NSCoder) {
@@ -81,7 +87,11 @@ final class SectionHeaderComponent: Component {
             self.component = component
             self.state = state
             
-            let height: CGFloat = 28.0
+            let height: CGFloat = component.audiencePeople ? 30.0 : 28.0
+            self.backgroundColor = component.audiencePeople ? UIColor(rgb: 0x1e1c1f) : .clear
+            self.bottomSeparator.isHidden = !component.audiencePeople
+            self.bottomSeparator.backgroundColor = component.theme.rootController.navigationBar.separatorColor.cgColor
+            transition.setFrame(layer: self.bottomSeparator, frame: CGRect(x: 0, y: height - UIScreenPixel, width: availableSize.width, height: UIScreenPixel))
             let sideInset: CGFloat = 16.0
             let titleMinX: CGFloat = sideInset + component.leftInset
             let trailingInset: CGFloat = component.rightInset
@@ -98,10 +108,11 @@ final class SectionHeaderComponent: Component {
                 }
             }
             
+            if component.audiencePeople { self.backgroundView.isHidden = true }
             let titleSize = self.title.update(
                 transition: .immediate,
                 component: AnyComponent(MultilineTextComponent(
-                    text: .plain(NSAttributedString(string: component.title, font: Font.regular(13.0), textColor: component.theme.list.itemSecondaryTextColor))
+                    text: .plain(NSAttributedString(string: component.title, font: Font.regular(13.0), textColor: component.audiencePeople ? UIColor(rgb: 0x98989f) : component.theme.list.itemSecondaryTextColor))
                 )),
                 environment: {},
                 containerSize: CGSize(width: availableSize.width - titleMinX - trailingInset, height: 100.0)
@@ -124,7 +135,7 @@ final class SectionHeaderComponent: Component {
                     transition: .immediate,
                     component: AnyComponent(
                         Button(content: AnyComponent(MultilineTextComponent(
-                            text: .plain(NSAttributedString(string: actionTitle, font: Font.regular(13.0), textColor: component.theme.list.itemSecondaryTextColor))
+                            text: .plain(NSAttributedString(string: actionTitle, font: Font.regular(13.0), textColor: component.audiencePeople ? UIColor(rgb: 0x98989f) : component.theme.list.itemSecondaryTextColor))
                         )), action: { [weak self] in
                             if let self, let component = self.component {
                                 component.action?()

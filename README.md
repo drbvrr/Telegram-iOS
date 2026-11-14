@@ -1,116 +1,43 @@
-# Telegram iOS Source Code Compilation Guide
+# Story Audiences for Telegram iOS
 
-We welcome all developers to use our API and source code to create applications on our platform.
-There are several things we require from **all developers** for the moment.
+Reusable story audiences: create a named list, choose an icon, add people, and reuse it when publishing stories. Built with the original Telegram iOS media editor, privacy screen, contact picker, navigation, story viewer and publication animation.
 
-# Creating your Telegram Application
+**[Download the offline Simulator demo](https://github.com/drbvrr/Telegram-iOS/releases)** · **[Run from Xcode](build-system/story-audiences-demo/README.md)** · **[Integration notes](docs/story-audiences/INTEGRATION.md)** · **[Patch](story-audiences-delivery/story-audiences-native.patch)**
 
-1. [**Obtain your own api_id**](https://core.telegram.org/api/obtaining_api_id) for your application.
-2. Please **do not** use the name Telegram for your app — or make sure your users understand that it is unofficial.
-3. Kindly **do not** use our standard logo (white paper plane in a blue circle) as your app's logo.
-3. Please study our [**security guidelines**](https://core.telegram.org/mtproto/security_guidelines) and take good care of your users' data and privacy.
-4. Please remember to publish **your** code too in order to comply with the licences.
+This is an unofficial feature prototype in a fork of [TelegramMessenger/Telegram-iOS](https://github.com/TelegramMessenger/Telegram-iOS). The demo runs locally with supplied contacts, avatars, chats and stories. It needs no Telegram account, Premium, API keys or connection to Telegram servers.
 
-# Quick Compilation Guide
+| Share a story | Edit a list | Change an audience |
+| --- | --- | --- |
+| ![Story privacy](docs/story-audiences/screenshots/share-story.png) | ![List details](docs/story-audiences/screenshots/list-details.png) | ![Published story audience](docs/story-audiences/screenshots/published-story.png) |
 
-## Get the Code
+## Try it
 
-```
-git clone --recursive -j8 https://github.com/TelegramMessenger/Telegram-iOS.git
-```
+The fastest route is the **StoryAudiences-offline-demo-arm64-ios27.2.zip** asset in Releases. Extract the whole archive and run **Launch Story Audiences.command**. Xcode and the iOS 27.2 Simulator runtime must already be installed; the app does not need compiling. Tested on an Apple Silicon Mac with Xcode 27.2 / iOS 27.2.
 
-## Setup Xcode
+The generated Xcode project is built from this fork. [Build instructions](build-system/story-audiences-demo/README.md) include a fresh-clone route and a pinned patch route.
 
-Install Xcode (directly from https://developer.apple.com/download/applications or using the App Store).
+Walkthrough: **Next → Create List → select people → Next → name / icon → checkmark → Post → My Story → audience switcher**. The original story viewers screen is retained.
 
-## Adjust Configuration
+## Behavior
 
-1. Generate a random identifier:
-```
-openssl rand -hex 8
-```
-2. Create a new Xcode project. Use `Telegram` as the Product Name. Use `org.{identifier from step 1}` as the Organization Identifier.
-3. Open `Keychain Access` and navigate to `Certificates`. Locate `Apple Development: your@email.address (XXXXXXXXXX)` and double tap the certificate. Under `Details`, locate `Organizational Unit`. This is the Team ID.
-4. Edit `build-system/template_minimal_development_configuration.json`. Use data from the previous steps.
+- Everyone, My Contacts and Close Friends remain. Close Friends keeps its green indication; custom membership is private to the author.
+- Lists retain names, icons, people and assigned colors across launches. Duplicate names and empty membership are allowed; blank names are rejected.
+- Editing a list updates access to linked local stories. Deleting a list moves its linked stories and selection to Everyone.
+- Moving a story replaces its audience after confirmation. Its old audience is not retained.
+- Member removal, deletion and moving use native confirmation alerts. The selected-avatar strip, list details and icon cloud follow the supplied design.
 
-## Generate an Xcode project
+## Implementation status
 
-```
-python3 build-system/Make/Make.py \
-    --cacheDir="$HOME/telegram-bazel-cache" \
-    generateProject \
-    --configurationPath=build-system/template_minimal_development_configuration.json \
-    --xcodeManagedCodesigning
-```
+The UI and local audience/story behavior work in the original client. Production reuse points include `StoryAudienceStore`, `StoryAudienceConfiguration`, the original privacy/contact screens, the new list editor, and author story badge hooks.
 
-# Advanced Compilation Guide
+The supplied executable uses an isolated offline account and local privacy adapter. **Live-account wiring, remote privacy enforcement and cross-device list synchronization are not delivered or validated here.** [Integration notes](docs/story-audiences/INTEGRATION.md) identify what a connected client must wire to the existing Telegram engine. The demo bootstrap should remain isolated.
 
-## Xcode
+## Review the change
 
-1. Copy and edit `build-system/appstore-configuration.json`.
-2. Copy `build-system/fake-codesigning`. Create and download provisioning profiles, using the `profiles` folder as a reference for the entitlements.
-3. Generate an Xcode project:
-```
-python3 build-system/Make/Make.py \
-    --cacheDir="$HOME/telegram-bazel-cache" \
-    generateProject \
-    --configurationPath=configuration_from_step_1.json \
-    --codesigningInformationPath=directory_from_step_2
-```
+- Upstream base: [`24638bc69bd083981b178dd1e7f921eebbf7fc46`](https://github.com/TelegramMessenger/Telegram-iOS/commit/24638bc69bd083981b178dd1e7f921eebbf7fc46).
+- Feature branch: `story-audiences`.
+- [Technical integration map](docs/story-audiences/INTEGRATION.md), [verification](docs/story-audiences/VERIFICATION.md), [credits](build-system/story-audiences-demo/NOTICE.md).
+- The binary patch includes the demo fixture assets. It applies to the pinned base; applying to a newer upstream revision may require resolving changes.
+- Original upstream build instructions are preserved in [UPSTREAM-BUILD.md](docs/story-audiences/UPSTREAM-BUILD.md).
 
-## IPA
-
-1. Repeat the steps from the previous section. Use distribution provisioning profiles.
-2. Run:
-```
-python3 build-system/Make/Make.py \
-    --cacheDir="$HOME/telegram-bazel-cache" \
-    build \
-    --configurationPath=...see previous section... \
-    --codesigningInformationPath=...see previous section... \
-    --buildNumber=100001 \
-    --configuration=release_arm64
-```
-
-# FAQ
-
-## Xcode is stuck at "build-request.json not updated yet"
-
-Occasionally, you might observe the following message in your build log:
-```
-"/Users/xxx/Library/Developer/Xcode/DerivedData/Telegram-xxx/Build/Intermediates.noindex/XCBuildData/xxx.xcbuilddata/build-request.json" not updated yet, waiting...
-```
-
-Should this occur, simply cancel the ongoing build and initiate a new one.
-
-## Telegram_xcodeproj: no such package 
-
-Following a system restart, the auto-generated Xcode project might encounter a build failure accompanied by this error:
-```
-ERROR: Skipping '@rules_xcodeproj_generated//generator/Telegram/Telegram_xcodeproj:Telegram_xcodeproj': no such package '@rules_xcodeproj_generated//generator/Telegram/Telegram_xcodeproj': BUILD file not found in directory 'generator/Telegram/Telegram_xcodeproj' of external repository @rules_xcodeproj_generated. Add a BUILD file to a directory to mark it as a package.
-```
-
-If you encounter this issue, re-run the project generation steps in the README.
-
-
-# Tips
-
-## Codesigning is not required for simulator-only builds
-
-Add `--disableProvisioningProfiles`:
-```
-python3 build-system/Make/Make.py \
-    --cacheDir="$HOME/telegram-bazel-cache" \
-    generateProject \
-    --configurationPath=path-to-configuration.json \
-    --codesigningInformationPath=path-to-provisioning-data \
-    --disableProvisioningProfiles
-```
-
-## Versions
-
-Each release is built using a specific Xcode version (see `versions.json`). The helper script checks the versions of the installed software and reports an error if they don't match the ones specified in `versions.json`. It is possible to bypass these checks:
-
-```
-python3 build-system/Make/Make.py --overrideXcodeVersion build ... # Don't check the version of Xcode
-```
+Code submission and design by [drbvrr](https://github.com/drbvrr). Telegram and vendored code retain their original notices. Fixture images and icons were supplied for this prototype.

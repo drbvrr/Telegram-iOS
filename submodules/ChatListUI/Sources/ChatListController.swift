@@ -2371,6 +2371,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
     
     private weak var storyTooltip: TooltipScreen?
     fileprivate func maybeDisplayStoryTooltip() {
+        if storyAudiencesOfflineDemoEnabled { return }
         let content = self.updateHeaderContent()
         if content.secondaryContent != nil {
             return
@@ -3065,7 +3066,7 @@ public class ChatListControllerImpl: TelegramBaseController, ChatListController 
         var storiesCount = 0
         if let rawStorySubscriptions = self.rawStorySubscriptions, let accountItem = rawStorySubscriptions.accountItem {
             storiesCount = accountItem.storyCount
-            if accountItem.storyCount >= self.context.userLimits.maxExpiringStoriesCount {
+            if !storyAudiencesOfflineDemoEnabled && accountItem.storyCount >= self.context.userLimits.maxExpiringStoriesCount {
                 reachedCountLimit = true
             }
         }

@@ -24,6 +24,9 @@ final class CategoryListItemComponent: Component {
     let color: ShareWithPeersScreenComponent.CategoryColor
     let iconName: String?
     let subtitle: String?
+    let audienceLayout: Bool
+    let customImage: UIImage?
+    let isCreateList: Bool
     let selectionState: SelectionState
     let hasNext: Bool
     let action: () -> Void
@@ -36,6 +39,9 @@ final class CategoryListItemComponent: Component {
         color: ShareWithPeersScreenComponent.CategoryColor,
         iconName: String?,
         subtitle: String?,
+        audienceLayout: Bool = false,
+        customImage: UIImage? = nil,
+        isCreateList: Bool = false,
         selectionState: SelectionState,
         hasNext: Bool,
         action: @escaping () -> Void,
@@ -47,6 +53,9 @@ final class CategoryListItemComponent: Component {
         self.color = color
         self.iconName = iconName
         self.subtitle = subtitle
+        self.audienceLayout = audienceLayout
+        self.customImage = customImage
+        self.isCreateList = isCreateList
         self.selectionState = selectionState
         self.hasNext = hasNext
         self.action = action
@@ -54,6 +63,7 @@ final class CategoryListItemComponent: Component {
     }
     
     static func ==(lhs: CategoryListItemComponent, rhs: CategoryListItemComponent) -> Bool {
+        if lhs.audienceLayout != rhs.audienceLayout || lhs.customImage != rhs.customImage || lhs.isCreateList != rhs.isCreateList { return false }
         if lhs.context !== rhs.context {
             return false
         }
@@ -82,12 +92,15 @@ final class CategoryListItemComponent: Component {
     }
     
     final class View: UIView {
+        private let selectionButton = HighlightTrackingButton()
         private let containerButton: HighlightTrackingButton
         
         private let title = ComponentView<Empty>()
         private let label = ComponentView<Empty>()
         private let labelArrow = ComponentView<Empty>()
         private let separatorLayer: SimpleLayer
+        private static let audienceCheckImage = UIImage(bundleImageName: "StoryAudiences/Check")
+        private let audienceCheck = UIImageView()
         private let iconView: UIImageView
         
         private var checkLayer: CheckLayer?
@@ -107,7 +120,10 @@ final class CategoryListItemComponent: Component {
             self.layer.addSublayer(self.separatorLayer)
             self.addSubview(self.containerButton)
             self.containerButton.addSubview(self.iconView)
+            self.containerButton.addSubview(self.audienceCheck)
             
+            self.addSubview(self.selectionButton)
+            self.selectionButton.addTarget(self, action: #selector(self.selectionPressed), for: .touchUpInside)
             self.containerButton.addTarget(self, action: #selector(self.pressed), for: .touchUpInside)
         }
         
@@ -115,10 +131,13 @@ final class CategoryListItemComponent: Component {
             fatalError("init(coder:) has not been implemented")
         }
         
+        @objc private func selectionPressed() { self.component?.action() }
+
         @objc private func pressed() {
             guard let component = self.component else {
                 return
             }
+            if component.audienceLayout { component.secondaryAction(); return }
             if case .editing(true, _) = component.selectionState {
                 component.secondaryAction()
             } else {
@@ -127,6 +146,7 @@ final class CategoryListItemComponent: Component {
         }
         
         func update(component: CategoryListItemComponent, availableSize: CGSize, state: EmptyComponentState, environment: Environment<Empty>, transition: ComponentTransition) -> CGSize {
+            let iconUpdated = self.component?.iconName != component.iconName || self.component?.color != component.color
             let themeUpdated = self.component?.theme !== component.theme
             
             var hasSelectionUpdated = false
@@ -168,20 +188,27 @@ final class CategoryListItemComponent: Component {
                 self.iconView.image = generateAvatarImage(size: CGSize(width: 40.0, height: 40.0), icon: generateTintedImage(image: UIImage(bundleImageName: iconName), color: .white), iconScale: iconScale, cornerRadius: 20.0, color: .blue, customColors: colors.reversed())
             }
             
+            if component.audienceLayout {
+                if component.isCreateList {
+                    self.iconView.image = UIImage(systemName: "plus", withConfiguration: UIImage.SymbolConfiguration(pointSize: 25, weight: .regular))?.withTintColor(component.theme.list.itemAccentColor, renderingMode: .alwaysOriginal)
+                    self.iconView.contentMode = .center
+                } else if let image = component.customImage {
+                    self.iconView.image = image; self.iconView.contentMode = .scaleAspectFit
+                }
+            }
             self.component = component
             self.state = state
             
             let contextInset: CGFloat = 0.0
             
-            let height: CGFloat = 64.0
+            let height: CGFloat = component.audienceLayout ? (component.isCreateList ? 62.0 : 68.0) : 64.0
             let verticalInset: CGFloat = 0.0
-            var leftInset: CGFloat = 62.0
+            var leftInset: CGFloat = component.audienceLayout ? 68.0 : 62.0
             let rightInset: CGFloat = contextInset * 2.0 + 8.0
-            var avatarLeftInset: CGFloat = 10.0
+            var avatarLeftInset: CGFloat = component.audienceLayout ? 16.0 : 10.0
             
             if case let .editing(isSelected, isTinted) = component.selectionState {
-                leftInset += 44.0
-                avatarLeftInset += 44.0
+                if !component.audienceLayout { leftInset += 44.0; avatarLeftInset += 44.0 }
                 let checkSize: CGFloat = 22.0
                 
                 let checkLayer: CheckLayer
@@ -207,7 +234,10 @@ final class CategoryListItemComponent: Component {
                     checkLayer.setSelected(isSelected, animated: false)
                     checkLayer.setNeedsDisplay()
                 }
-                transition.setFrame(layer: checkLayer, frame: CGRect(origin: CGPoint(x: floor((54.0 - checkSize) * 0.5), y: floor((height - verticalInset * 2.0 - checkSize) / 2.0)), size: CGSize(width: checkSize, height: checkSize)))
+                if component.audienceLayout {
+                    checkLayer.theme = CheckNodeTheme(backgroundColor: .clear, strokeColor: component.theme.list.itemAccentColor, borderColor: .clear, overlayBorder: false, hasInset: false, hasShadow: false, checkmarkLineWidth: 2.0)
+                }
+                transition.setFrame(layer: checkLayer, frame: CGRect(origin: CGPoint(x: component.audienceLayout ? availableSize.width - 34.0 : floor((54.0 - checkSize) * 0.5), y: floor((height - verticalInset * 2.0 - checkSize) / 2.0)), size: CGSize(width: checkSize, height: checkSize)))
             } else {
                 if let checkLayer = self.checkLayer {
                     self.checkLayer = nil
@@ -217,6 +247,10 @@ final class CategoryListItemComponent: Component {
                 }
             }
             
+            if component.audienceLayout {
+                self.checkLayer?.isHidden = component.isCreateList
+                self.checkLayer?.opacity = { if case .editing(true, _) = component.selectionState { return 1 }; return 0 }()
+            }
             let avatarSize: CGFloat = 40.0
             
             let avatarFrame = CGRect(origin: CGPoint(x: avatarLeftInset, y: floor((height - verticalInset * 2.0 - avatarSize) / 2.0)), size: CGSize(width: avatarSize, height: avatarSize))
@@ -236,7 +270,7 @@ final class CategoryListItemComponent: Component {
             let labelSize = self.label.update(
                 transition: .immediate,
                 component: AnyComponent(MultilineTextComponent(
-                    text: .plain(NSAttributedString(string: labelData.0, font: Font.regular(15.0), textColor: labelData.1 ? component.theme.list.itemAccentColor : component.theme.list.itemSecondaryTextColor))
+                    text: .plain(NSAttributedString(string: labelData.0, font: Font.regular(15.0), textColor: labelData.1 && !component.audienceLayout ? component.theme.list.itemAccentColor : component.theme.list.itemSecondaryTextColor))
                 )),
                 environment: {},
                 containerSize: CGSize(width: availableSize.width - leftInset - rightInset - 14.0, height: 100.0)
@@ -255,10 +289,30 @@ final class CategoryListItemComponent: Component {
                 previousTitleContents = self.title.view?.snapshotView(afterScreenUpdates: false)
             }
             
+            if component.audienceLayout {
+                self.checkLayer?.isHidden = true
+                let selected: Bool
+                if case .editing(true, _) = component.selectionState { selected = true } else { selected = false }
+                self.audienceCheck.isHidden = !selected
+                self.audienceCheck.image = Self.audienceCheckImage
+                self.audienceCheck.frame = CGRect(x: availableSize.width - 46, y: 20, width: 30, height: 30)
+                if !component.isCreateList, component.customImage == nil, iconUpdated || themeUpdated, component.iconName != nil {
+                    let colors: (UInt32, UInt32)
+                    switch component.color {
+                    case .blue: colors = (0x45a7ff,0x1184ff)
+                    case .green: colors = (0x57eb73,0x1ccb46)
+                    default: colors = (0xcd7efe,0xae51dd)
+                    }
+                    let builtinName = component.color == .blue ? "Everyone" : component.color == .green ? "Close Friends" : "My Contacts"
+                    let glyph: UIImage? = StoryAudienceGlyphs.image(builtinName, size: 28)
+                    let art = UIGraphicsImageRenderer(size: CGSize(width:40,height:40)).image { _ in if let glyph { glyph.draw(at: CGPoint(x: (40 - glyph.size.width) / 2, y: (40 - glyph.size.height) / 2)) } }
+                    self.iconView.image = StoryAudienceAppearance.image(size: CGSize(width:40,height:40), top: colors.0, bottom: colors.1, glyph: art)
+                }
+            }
             let titleSize = self.title.update(
                 transition: .immediate,
                 component: AnyComponent(MultilineTextComponent(
-                    text: .plain(NSAttributedString(string: component.title, font: Font.semibold(17.0), textColor: component.theme.list.itemPrimaryTextColor))
+                    text: .plain(NSAttributedString(string: component.title, font: component.audienceLayout ? Font.regular(17.0) : Font.semibold(17.0), textColor: component.isCreateList ? component.theme.list.itemAccentColor : component.theme.list.itemPrimaryTextColor))
                 )),
                 environment: {},
                 containerSize: CGSize(width: availableSize.width - leftInset - rightInset, height: 100.0)
@@ -307,15 +361,19 @@ final class CategoryListItemComponent: Component {
                 transition.setFrame(view: labelArrowView, frame: CGRect(origin: CGPoint(x: titleFrame.minX + labelSize.width + 5.0, y: titleFrame.maxY + titleSpacing + floorToScreenPixels(labelSize.height / 2.0 - labelArrowSize.height / 2.0) + 1.0 ), size: labelArrowSize))
             }
             
+            self.labelArrow.view?.isHidden = component.audienceLayout
             if themeUpdated {
                 self.separatorLayer.backgroundColor = component.theme.list.itemPlainSeparatorColor.cgColor
             }
-            transition.setFrame(layer: self.separatorLayer, frame: CGRect(origin: CGPoint(x: leftInset, y: height), size: CGSize(width: availableSize.width - leftInset, height: UIScreenPixel)))
+            transition.setFrame(layer: self.separatorLayer, frame: CGRect(origin: CGPoint(x: leftInset, y: height), size: CGSize(width: availableSize.width - leftInset - (component.audienceLayout ? 16 : 0), height: UIScreenPixel)))
             self.separatorLayer.isHidden = !component.hasNext
             
             let containerFrame = CGRect(origin: CGPoint(x: contextInset, y: verticalInset), size: CGSize(width: availableSize.width - contextInset * 2.0, height: height - verticalInset * 2.0))
             transition.setFrame(view: self.containerButton, frame: containerFrame)
             
+            self.selectionButton.isHidden = !component.audienceLayout || component.isCreateList
+            self.selectionButton.frame = CGRect(x: availableSize.width - 52, y: 0, width: 52, height: height)
+            self.selectionButton.accessibilityLabel = "Select " + component.title
             // VoiceOver: one button per audience, its name and the line under it ("exclude people", "John Telegram"),
             // `.selected` for the chosen one. Activation is the tap: choose it, or open its list once chosen.
             var isSelected = false

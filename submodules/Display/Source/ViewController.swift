@@ -170,6 +170,14 @@ public protocol CustomViewControllerNavigationDataSummary: AnyObject {
     }
     open var _presentedInModal: Bool = false
     open var _hasGlassStyle: Bool = false
+    /// Additional clearance above a native modal and its recessed backdrop.
+    open var modalPresentationAdditionalTopInset: CGFloat = 0.0
+    /// Opacity of the original native modal scrim.
+    open var modalPresentationDimAlpha: CGFloat = 0.25
+    /// Optional solid tint of the existing native backdrop scrim.
+    open var modalPresentationDimColor: UIColor? = nil
+    /// Existing media surface to which a colored native scrim should be clipped.
+    open var modalPresentationBackdropView: UIView? { return nil }
     open var flatReceivesModalTransition: Bool = false
     /// A full-screen viewer (a web page, a document) presented as a modal fills the screen beside a top-right status
     /// island (iPhone Duo, unfolded portrait) rather than becoming a card below it; its bar then sits beside the island.

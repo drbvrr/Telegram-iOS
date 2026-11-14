@@ -47,6 +47,7 @@ swift_library(
         "//submodules/PromptUI",
         "//submodules/DirectMediaImageCache",
         "//submodules/TelegramUI/Components/GlassBarButtonComponent",
+        "//submodules/TelegramUI/Components/GlassBackgroundComponent",
         "//submodules/TelegramUI/Components/EdgeEffect",
         "//submodules/TextFormat",
         "//submodules/PeerInfoUI/CreateExternalMediaStreamScreen",

@@ -526,7 +526,7 @@ final class LiveStreamSettingsScreenComponent: Component {
                                         base = .contacts
                                     case .closeFriends:
                                         base = .closeFriends
-                                    case .selectedContacts:
+                                    case .selectedContacts, .audience, .createList:
                                         base = .nobody
                                     }
                                     let selectedPeers = component.stateContext.stateValue?.savedSelectedPeers[base] ?? []
@@ -570,7 +570,7 @@ final class LiveStreamSettingsScreenComponent: Component {
                                     base = .contacts
                                 case .closeFriends:
                                     base = .closeFriends
-                                case .selectedContacts:
+                                case .selectedContacts, .audience, .createList:
                                     base = .nobody
                                 }
                                 let selectedPeers = component.stateContext.stateValue?.savedSelectedPeers[base] ?? []

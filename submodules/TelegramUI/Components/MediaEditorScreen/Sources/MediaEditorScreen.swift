@@ -2654,6 +2654,9 @@ let storyMaxCombinedVideoDuration: Double = storyMaxVideoDuration * Double(story
 let avatarMaxVideoDuration: Double = 10.0
 
 public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UIDropInteractionDelegate {
+    override public var modalPresentationBackdropView: UIView? {
+        return self.isNodeLoaded ? self.node.previewContainerView : nil
+    }
     public enum AvatarClipStyle {
         case round
         case roundedRect
@@ -2721,7 +2724,7 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
             privacy: EngineStoryPrivacy(base: .everyone, additionallyIncludePeers: []),
             timeout: 86400,
             isForwardingDisabled: false,
-            pin: true,
+            pin: !storyAudiencesOfflineDemoEnabled,
             folderIds: []
         )
     }
@@ -2849,7 +2852,7 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
         private var subjectDisposable: Disposable?
         private var appInForegroundDisposable: Disposable?
         
-        private let backgroundDimView: UIView
+        fileprivate let backgroundDimView: UIView
         fileprivate let containerView: UIView
         fileprivate let componentExternalState = MediaEditorScreenComponent.ExternalState()
         fileprivate let componentHost: ComponentView<ViewControllerComponentContainer.Environment>
@@ -6885,6 +6888,11 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
         self.automaticallyControlPresentationContextLayout = false
         
         self.navigationPresentation = .flatModal
+        self.flatReceivesModalTransition = StoryAudienceUIHooks.configuration?(context) != nil
+        if self.flatReceivesModalTransition {
+            self._hasGlassStyle = true
+            self.modalPresentationAdditionalTopInset = 13.0
+        }
         self.supportedOrientations = ViewControllerSupportedOrientations(regularSize: .all, compactSize: .portrait)
         self.statusBar.statusBarStyle = .White
         
@@ -6973,7 +6981,7 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
             })
         }
         if checkPostingAvailability {
-            self.postingAvailabilityPromise.set(self.context.engine.messages.checkStoriesUploadAvailability(target: .myStories))
+            self.postingAvailabilityPromise.set(storyAudiencesOfflineDemoEnabled ? .single(.available(remainingCount: 100)) : self.context.engine.messages.checkStoriesUploadAvailability(target: .myStories))
         }
     }
     
@@ -7054,6 +7062,7 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
      
     private var currentCoverImage: UIImage?
     func openPrivacySettings(_ privacy: MediaEditorResultPrivacy? = nil, completion: @escaping () -> Void = {}) {
+        if storyAudiencesOfflineDemoEnabled { NSLog("StoryAudiences.Next: open privacy") }
         guard let mediaEditor = self.node.mediaEditor else {
             return
         }
@@ -7094,14 +7103,15 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
             subject: .stories(editing: false, count: storyCount),
             editing: false,
             initialPeerIds: Set(privacy.privacy.additionallyIncludePeers),
-            closeFriends: self.closeFriends.get(),
-            adminedChannels: self.adminedChannels.get(),
-            blockedPeersContext: self.storiesBlockedPeers
+            closeFriends: storyAudiencesOfflineDemoEnabled ? self.context.engine.data.get(TelegramEngine.EngineData.Item.Contacts.CloseFriends()) : self.closeFriends.get(),
+            adminedChannels: storyAudiencesOfflineDemoEnabled ? .single([]) : self.adminedChannels.get(),
+            blockedPeersContext: storyAudiencesOfflineDemoEnabled ? nil : self.storiesBlockedPeers
         )
         let _ = (stateContext.ready |> filter { $0 } |> take(1) |> deliverOnMainQueue).startStandalone(next: { [weak self] _ in
             guard let self else {
                 return
             }
+            if storyAudiencesOfflineDemoEnabled { NSLog("StoryAudiences.Next: privacy state ready") }
             let sendAsPeerId = privacy.sendAsPeerId
             let initialPrivacy = privacy.privacy
             let timeout = privacy.timeout
@@ -7174,9 +7184,9 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
                     editCoverImpl?()
                 }
             )
-            controller.dismissed = {
-                self.node.mediaEditor?.play()
-            }
+            // The editor itself is the native modal backdrop. A second colored
+            // backing becomes a separate card during interactive dismissal.
+            controller.dismissed = { self.node.mediaEditor?.play() }
             if self.collage != nil {
                 controller.automaticallyDismissOnCompletion = false
                 self.storyPrivacyScreen = controller
@@ -9651,7 +9661,7 @@ extension MediaEditorScreenImpl.Node {
         let right: MediaEditorBottomControlsSideItem
         switch items.right {
         case let .next(isDone):
-            right = MediaEditorBottomControlsSideItem(id: items.right.id, content: .label(isDone ? strings.Story_Editor_Done.uppercased() : strings.Story_Editor_Next.uppercased(), icon: "Media Editor/Next"), tint: .accent(mediaEditorStoryAccentColor))
+            right = MediaEditorBottomControlsSideItem(id: items.right.id, content: .label(isDone ? strings.Story_Editor_Done.uppercased() : strings.Story_Editor_Next.uppercased(), icon: "Media Editor/Next"), tint: .accent(mediaEditorStoryAccentColor), accessibilityLabel: isDone ? strings.Story_Editor_Done : strings.Story_Editor_Next)
         case .nextIcon:
             right = MediaEditorBottomControlsSideItem(id: items.right.id, content: .icon("Navigation/Back", flipped: true), width: mediaEditorBottomControlsButtonSide, tint: .accent(mediaEditorStoryAccentColor), accessibilityLabel: strings.Story_Editor_Next)
         case .add:

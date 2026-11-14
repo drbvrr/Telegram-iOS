@@ -8,6 +8,39 @@ final class NavigationModalContainer: ASDisplayNode, ASScrollViewDelegate, ASGes
     private var theme: NavigationControllerTheme
     let isFlat: Bool
     
+    weak var backdropSourceView: UIView?
+    private let backdropDim: CALayer = {
+        let layer = CALayer()
+        layer.actions = ["opacity": NSNull(), "position": NSNull(), "bounds": NSNull(), "backgroundColor": NSNull(), "cornerRadius": NSNull()]
+        return layer
+    }()
+    func updateBackdropFrame(transition: ContainedViewLayoutTransition) {
+        guard let source = backdropSourceView, source.bounds.width > 0 else {
+            backdropDim.removeFromSuperlayer()
+            return
+        }
+        // Tint belongs to the real media surface, so the native modal transform and
+        // interactive spring move its pixels and tint together. A separately converted
+        // screen-space mask can lag the presentation layer while a dismissal rebounds.
+        CATransaction.begin()
+        CATransaction.setDisableActions(true)
+        if backdropDim.superlayer !== source.layer {
+            backdropDim.removeFromSuperlayer()
+            backdropDim.opacity = Float(self.dim.alpha)
+            source.layer.addSublayer(backdropDim)
+        }
+        backdropDim.frame = source.bounds
+        // Both story media receivers clip their own contents, including animated corners.
+        // Do not round a second surface independently inside that clip.
+        if let color = self.dim.backgroundColor, color.cgColor.alpha > 0.0 {
+            backdropDim.backgroundColor = color.cgColor
+        }
+        self.dim.backgroundColor = .clear
+        CATransaction.commit()
+    }
+    deinit {
+        backdropDim.removeFromSuperlayer()
+    }
     private let dim: ASDisplayNode
     private let scrollNode: ASScrollNode
     let container: NavigationContainer
@@ -279,6 +312,7 @@ final class NavigationModalContainer: ASDisplayNode, ASScrollViewDelegate, ASGes
     }
     
     private func applyDismissProgress(transition: ContainedViewLayoutTransition, completion: @escaping () -> Void) {
+        transition.updateAlpha(layer: self.backdropDim, alpha: 1.0 - self.dismissProgress)
         transition.updateAlpha(node: self.dim, alpha: 1.0 - self.dismissProgress, completion: { _ in
             completion()
         })
@@ -370,8 +404,12 @@ final class NavigationModalContainer: ASDisplayNode, ASScrollViewDelegate, ASGes
                 flatReceivesModalTransition = true
             }
         }
+        let additionalTopInset = controllers.first?.modalPresentationAdditionalTopInset ?? 0.0
         let _ = flatReceivesModalTransition
         
+        if self.backdropSourceView == nil {
+            self.backdropDim.removeFromSuperlayer()
+        }
         transition.updateFrame(node: self.dim, frame: CGRect(origin: CGPoint(), size: layout.size))
         self.ignoreScrolling = true
         self.scrollNode.view.isScrollEnabled = (layout.inputHeight == nil || layout.inputHeight == 0.0) && self.isInteractiveDimissEnabled && !self.isFlat
@@ -403,9 +441,13 @@ final class NavigationModalContainer: ASDisplayNode, ASScrollViewDelegate, ASGes
             self.panRecognizer?.isEnabled = true
             self.container.clipsToBounds = true
             if self.isFlat {
-                self.dim.backgroundColor = .clear
+                // A story viewer blocks chats beneath its recessed surface. The editor must
+                // remain transparent here so its original publication transition reveals chats.
+                let blocksUnderlyingContent = flatReceivesModalTransition && controllers.first?.blocksBackgroundWhenInOverlay == true
+                self.dim.backgroundColor = blocksUnderlyingContent ? .black : .clear
+                transition.updateAlpha(node: self.dim, alpha: blocksUnderlyingContent ? coveredByModalTransition : 1.0)
             } else {
-                self.dim.backgroundColor = UIColor(white: 0.0, alpha: 0.25)
+                self.dim.backgroundColor = controllers.first?.modalPresentationDimColor ?? UIColor(white: 0.0, alpha: min(1.0, max(0.0, controllers.first?.modalPresentationDimAlpha ?? 0.25)))
             }
             if isStandaloneModal || isLandscape || (self.isFlat && !flatReceivesModalTransition) {
                 self.container.cornerRadius = 0.0
@@ -438,7 +480,7 @@ final class NavigationModalContainer: ASDisplayNode, ASScrollViewDelegate, ASGes
                 if self.isFlat {
                     topInset = 0.0
                 } else if let statusBarHeight = layout.statusBarHeight {
-                    topInset += statusBarHeight
+                    topInset += statusBarHeight + additionalTopInset
                 }
                 
                 let effectiveStatusBarHeight: CGFloat?
@@ -457,9 +499,12 @@ final class NavigationModalContainer: ASDisplayNode, ASScrollViewDelegate, ASGes
                 containerScale = 1.0 * (1.0 - coveredByModalTransition) + maxScale * coveredByModalTransition
                 var maxScaledTopInset: CGFloat = topInset - 10.0
                 if flatReceivesModalTransition {
-                    maxScaledTopInset = 0.0
-                    if let statusBarHeight = layout.statusBarHeight {
-                        maxScaledTopInset += statusBarHeight
+                    if self.isFlat && additionalTopInset > 0.0 {
+                        // This full-screen receiver already lays out its status-bar area.
+                        // Adding it again hides the actual content below the covering card.
+                        maxScaledTopInset = additionalTopInset
+                    } else {
+                        maxScaledTopInset = layout.statusBarHeight ?? 0.0
                     }
                 }
                 let scaledTopInset: CGFloat = topInset * (1.0 - coveredByModalTransition) + maxScaledTopInset * coveredByModalTransition
@@ -519,6 +564,7 @@ final class NavigationModalContainer: ASDisplayNode, ASScrollViewDelegate, ASGes
         if let controller = self.container.controllers.first, case .standaloneModal = controller.navigationPresentation {
         } else if self.isFlat {
         } else {
+            transition.updateAlpha(layer: self.backdropDim, alpha: 1.0)
             transition.updateAlpha(node: self.dim, alpha: 1.0)
             transition.animatePositionAdditive(node: self.container, offset: CGPoint(x: 0.0, y: self.bounds.height + self.container.bounds.height / 2.0 - (self.container.position.y - self.bounds.height)))
         }
@@ -542,6 +588,7 @@ final class NavigationModalContainer: ASDisplayNode, ASScrollViewDelegate, ASGes
             if transition.isAnimated && !self.isFlat {
                 let alphaTransition: ContainedViewLayoutTransition = .animated(duration: 0.25, curve: .easeInOut)
                 let positionTransition: ContainedViewLayoutTransition = .animated(duration: 0.25, curve: .easeInOut)
+                alphaTransition.updateAlpha(layer: self.backdropDim, alpha: 0.0, beginWithCurrentState: true)
                 alphaTransition.updateAlpha(node: self.dim, alpha: 0.0, beginWithCurrentState: true)
                 if let lastController = self.container.controllers.last as? MinimizableController, lastController.isMinimized {
                     self.dim.layer.removeAllAnimations()

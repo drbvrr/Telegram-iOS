@@ -119,6 +119,15 @@ final class OptionListItemComponent: Component {
                 containerSize: CGSize(width: availableSize.width - leftInset - rightInset, height: 100.0)
             )
             
+            if StoryAudienceUIHooks.configuration != nil, let host = self.switchComponent.view {
+                for view in host.subviews {
+                    if let control = view as? UISwitch {
+                        control.tintColor = UIColor(rgb: 0x66656d)
+                        control.backgroundColor = component.selected ? .clear : UIColor(rgb: 0x66656d)
+                        control.layer.cornerRadius = control.bounds.height / 2
+                    }
+                }
+            }
             let titleSize = self.title.update(
                 transition: .immediate,
                 component: AnyComponent(MultilineTextComponent(
@@ -146,7 +155,7 @@ final class OptionListItemComponent: Component {
             if themeUpdated {
                 self.separatorLayer.backgroundColor = component.theme.list.itemPlainSeparatorColor.cgColor
             }
-            transition.setFrame(layer: self.separatorLayer, frame: CGRect(origin: CGPoint(x: leftInset, y: height), size: CGSize(width: availableSize.width - leftInset, height: UIScreenPixel)))
+            transition.setFrame(layer: self.separatorLayer, frame: CGRect(origin: CGPoint(x: leftInset, y: height), size: CGSize(width: availableSize.width - leftInset - (StoryAudienceUIHooks.configuration == nil ? 0 : 16), height: UIScreenPixel)))
             self.separatorLayer.isHidden = !component.hasNext
             
             let containerFrame = CGRect(origin: CGPoint(x: 0.0, y: verticalInset), size: CGSize(width: availableSize.width, height: height - verticalInset * 2.0))

@@ -230,6 +230,7 @@ public final class EngineStoryViewListContext {
         }
         
         let queue: Queue
+        private let offlineSeenPeerIds: [PeerId]
         
         let account: Account
         let peerId: EnginePeer.Id
@@ -249,6 +250,7 @@ public final class EngineStoryViewListContext {
         
         init(queue: Queue, account: Account, peerId: EnginePeer.Id, storyId: Int32, views: EngineStoryItem.Views, listMode: ListMode, sortMode: SortMode, searchQuery: String?, parentSource: Impl?) {
             self.queue = queue
+            self.offlineSeenPeerIds = storyAudiencesOfflineDemoEnabled ? views.seenPeers.map(\.id) : []
             self.account = account
             self.peerId = peerId
             self.storyId = storyId
@@ -402,6 +404,22 @@ public final class EngineStoryViewListContext {
         }
         
         func loadMore() {
+            if storyAudiencesOfflineDemoEnabled {
+                let account = self.account
+                self.disposable.set((account.postbox.transaction { transaction -> [EngineStoryViewListContext.Item] in
+                    return self.offlineSeenPeerIds.compactMap { id -> EngineStoryViewListContext.Item? in
+                        guard let peer = transaction.getPeer(id) else { return nil }
+                        let enginePeer = EnginePeer(peer)
+                        let title = (peer as? TelegramUser).map { ($0.firstName ?? "") + " " + ($0.lastName ?? "") } ?? ""
+                        if let query = self.searchQuery, !query.isEmpty, !title.lowercased().contains(query.lowercased()) { return nil }
+                        return .view(.init(peer: enginePeer, timestamp: Int32(Date().timeIntervalSince1970) - 60, storyStats: nil, reaction: nil, reactionFile: nil))
+                    }
+                } |> deliverOn(self.queue)).start(next: { [weak self] items in
+                    guard let self else { return }
+                    self.updateInternalState(state: InternalState(totalCount: items.count, totalViewsCount: items.count, totalForwardsCount: 0, totalReactedCount: 0, items: items, canLoadMore: false, nextOffset: nil))
+                }))
+                return
+            }
             if let parentSource = self.parentSource {
                 parentSource.loadMore()
                 return

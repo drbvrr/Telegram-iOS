@@ -62,6 +62,7 @@ func makeNavigationLayout(mode: NavigationControllerMode, layout: ContainerViewL
             beginsModal = true
             isStandalone = true
             isFlat = true
+            flatReceivesModalTransition = controller.flatReceivesModalTransition
         case .modalInLargeLayout:
             requiresModal = presentsModalInLargeLayout(layout)
         case .modalInCompactLayout:

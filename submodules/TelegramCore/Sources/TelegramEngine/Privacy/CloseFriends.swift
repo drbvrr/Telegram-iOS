@@ -27,7 +27,10 @@ public func _internal_updateCloseFriends(account: Account, peerIds: [EnginePeer.
             return .fail(.generic)
         }
         let selectedPeerIds = Set(peerIds)
-        return account.network.request(Api.functions.contacts.editCloseFriends(id: peerIds.map { $0.id._internalGetInt64Value() }))
+        let request: Signal<Api.Bool, UpdateCloseFriendsError>
+        if storyAudiencesOfflineDemoEnabled { request = .single(.boolTrue) }
+        else { request = account.network.request(Api.functions.contacts.editCloseFriends(id: peerIds.map { $0.id._internalGetInt64Value() })) |> mapError { _ in UpdateCloseFriendsError.generic } }
+        return request
         |> mapError { _ in UpdateCloseFriendsError.generic }
         |> mapToSignal { result -> Signal<Void, UpdateCloseFriendsError> in
             guard case .boolTrue = result else {

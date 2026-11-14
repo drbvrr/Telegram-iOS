@@ -711,6 +711,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             LoggingSettings.defaultSettings = LoggingSettings(logToFile: false, logToConsole: false, redactSensitiveData: true)
         }
         
+        // The offline-only build configuration must never start a connected client.
+        if buildConfig.apiId == 0 && !StoryAudiencesDemo.isEnabled {
+            preconditionFailure("Offline demo configuration requires DEBUG and --story-audiences-demo")
+        }
         let isUITest = CommandLine.arguments.contains("--ui-test")
 
         let rootPath: String
@@ -718,10 +722,16 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             let testDataPath = appGroupUrl.path + "/telegram-ui-tests-data"
             let _ = try? FileManager.default.removeItem(atPath: testDataPath)
             rootPath = rootPathForBasePath(testDataPath)
+        } else if StoryAudiencesDemo.isEnabled {
+            var reviewDirectory = "/Library/story-audiences-figma-review-v6"
+            if let index = CommandLine.arguments.firstIndex(of: "--story-audiences-test-run-id"), index + 1 < CommandLine.arguments.count, let runId = UUID(uuidString: CommandLine.arguments[index + 1]) {
+                reviewDirectory = "/Library/story-audiences-figma-review-" + runId.uuidString
+            }
+            rootPath = rootPathForBasePath(appGroupUrl.path + (CommandLine.arguments.contains("--story-audiences-figma-review") ? reviewDirectory : (CommandLine.arguments.contains("--story-audiences-test-data") ? "/Library/story-audiences-offline-checks-v2" : "/Library/story-audiences-offline-demo")))
         } else {
             rootPath = rootPathForBasePath(appGroupUrl.path)
         }
-        if !isUITest {
+        if !isUITest && !StoryAudiencesDemo.isEnabled {
             performAppGroupUpgrades(appGroupPath: appGroupUrl.path, rootPath: rootPath)
         }
         
@@ -1378,6 +1388,10 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
             }
             |> deliverOnMainQueue
             |> map { accountAndSettings -> UnauthorizedApplicationContext? in
+                if StoryAudiencesDemo.isEnabled, let (account, _) = accountAndSettings {
+                    let _ = StoryAudiencesDemo.signIn(accountManager: sharedApplicationContext.sharedContext.accountManager, account: account).startStandalone()
+                    return nil
+                }
                 return accountAndSettings.flatMap { account, otherAccountPhoneNumbers in
                     return UnauthorizedApplicationContext(apiId: buildConfig.apiId, apiHash: buildConfig.apiHash, sharedContext: sharedApplicationContext.sharedContext, account: account, otherAccountPhoneNumbers: otherAccountPhoneNumbers)
                 }
@@ -1421,6 +1435,15 @@ private func extractAccountManagerState(records: AccountRecordsView<TelegramAcco
 
                     self.mainWindow.debugAction = nil
                     self.mainWindow.viewController = context.rootController
+                    if StoryAudiencesDemo.isEnabled {
+                        StoryAudiencesDemo.installPublicationTransition(root: context.rootController)
+                        StoryAudiencesDemo.configure(context: context.context, present: { [weak demoAppDelegate = self] controller in demoAppDelegate?.mainWindow.present(controller, on: .root) })
+                    }
+                    if firstTime && StoryAudiencesDemo.isEnabled {
+                        StoryAudiencesDemo.open(context: context.context, present: { [weak demoAppDelegate = self] controller in
+                            demoAppDelegate?.mainWindow.present(controller, on: .root)
+                        })
+                    }
                     
                     #if DEBUG
                     if firstTime {

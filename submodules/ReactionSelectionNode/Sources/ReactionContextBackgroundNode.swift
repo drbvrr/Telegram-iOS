@@ -53,6 +53,8 @@ final class ReactionContextBackgroundNode: ASDisplayNode {
         }
     }
     
+    var cloudCornerRadius: CGFloat = 23.0
+    var materializesFromCircle = false
     private let largeCircleSize: CGFloat
     private let smallCircleSize: CGFloat
     
@@ -334,7 +336,7 @@ final class ReactionContextBackgroundNode: ASDisplayNode {
         } else {
             transition.updateFrame(view: glassBackgroundView.view, frame: localFrame, beginWithCurrentState: true)
         }
-        glassBackgroundView.view.update(size: frame.size, cornerRadius: min(23.0, frame.height * 0.5), isDark: layout.isDark, tintColor: layout.tintColor, isVisible: isVisible, transition: glassTransition)
+        glassBackgroundView.view.update(size: frame.size, cornerRadius: min(cloudCornerRadius, frame.height * 0.5), isDark: layout.isDark, tintColor: layout.tintColor, isVisible: isVisible, transition: glassTransition)
     }
     
     /// The tail's drops at their frames (this node's coordinates): the large one in the bar's container, the small one in
@@ -373,7 +375,8 @@ final class ReactionContextBackgroundNode: ASDisplayNode {
         }
         // As the blurred bar: the source gives the circle's horizontal centre and size, on the bar's own line (it was laid
         // out for the anchor before the message lifted).
-        let sourceFrame = CGRect(x: sourceBackgroundFrame.midX - sourceBackgroundFrame.width * 0.5, y: layout.barFrame.minY, width: min(sourceBackgroundFrame.width, layout.barFrame.width), height: layout.barFrame.height)
+        let sourceDiameter = min(sourceBackgroundFrame.width, layout.barFrame.width)
+        let sourceFrame = CGRect(x: sourceBackgroundFrame.midX - sourceDiameter * 0.5, y: self.materializesFromCircle ? layout.barFrame.maxY - sourceDiameter : layout.barFrame.minY, width: sourceDiameter, height: self.materializesFromCircle ? sourceDiameter : layout.barFrame.height)
         self.glassBarSourceFrame = sourceFrame
         self.glassDropsAreGrowing = true
         self.updateGlassBar(frame: sourceFrame, isVisible: false, transition: .immediate)
@@ -476,5 +479,32 @@ final class ReactionContextBackgroundNode: ASDisplayNode {
             let transition: ComponentTransition = .easeInOut(duration: 0.2)
             transition.setAlpha(view: glassBackgroundView.container, alpha: 0.0)
         }
+    }
+}
+
+/// A vertical icon grid can reuse the same glass/tail choreography as reactions.
+public final class StoryAudienceIconCloud: UIView {
+    private let background: ReactionContextBackgroundNode
+    public init(theme: PresentationTheme) {
+        background = ReactionContextBackgroundNode(glass: .init(isDark: true, isTinted: true, hasTail: true), largeCircleSize: 24, smallCircleSize: 8, maskNode: ASDisplayNode())
+        super.init(frame: CGRect(x: 0, y: 0, width: 224, height: 243.724))
+        background.cloudCornerRadius = 32
+        background.materializesFromCircle = true
+        background.frame = CGRect(x: 0, y: 22, width: 224, height: 222)
+        background.view.transform = CGAffineTransform(scaleX: 1, y: -1)
+        addSubview(background.view)
+        background.update(theme: theme, forceDark: true, size: CGSize(width: 224, height: 222), cloudSourcePoint: 162, isLeftAligned: false, isMinimized: false, isCoveredByInput: false, displayTail: true, forceTailToRight: false, transition: .immediate)
+        accessibilityIdentifier = "storyAudienceIconCloud"
+    }
+    required init?(coder: NSCoder) { fatalError("init(coder:) has not been implemented") }
+    public func open() {
+        background.animateInFromAnchorRect(size: CGSize(width: 224, height: 222), sourceBackgroundFrame: CGRect(x: 150, y: 210, width: 24, height: 24))
+        for view in subviews where view !== background.view { view.layer.animateAlpha(from: 0, to: 1, duration: 0.2, delay: 0.28) }
+    }
+    public func close() {
+        isUserInteractionEnabled = false
+        background.animateOut()
+        for view in subviews where view !== background.view { view.layer.animateAlpha(from: 1, to: 0, duration: 0.15, removeOnCompletion: false) }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) { [weak self] in self?.removeFromSuperview() }
     }
 }

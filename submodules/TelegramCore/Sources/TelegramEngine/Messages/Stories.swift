@@ -1913,6 +1913,46 @@ public enum EditStoryPrivacyError {
 }
 
 func _internal_editStoryPrivacy(account: Account, id: Int32, privacy: EngineStoryPrivacy) -> Signal<Never, EditStoryPrivacyError> {
+    if storyAudiencesOfflineDemoEnabled {
+        return account.postbox.transaction { transaction -> Void in
+            var entries = transaction.getStoryItems(peerId: account.peerId)
+            guard let index = entries.firstIndex(where: { $0.id == id }),
+                  let stored = entries[index].value.get(Stories.StoredItem.self), case let .item(item) = stored else { return }
+            if item.privacy?.base == privacy.base && item.privacy?.additionallyIncludePeers == privacy.additionallyIncludePeers { return }
+            let updated = Stories.Item(
+                    id: item.id,
+                    timestamp: item.timestamp,
+                    expirationTimestamp: item.expirationTimestamp,
+                    media: item.media,
+                    alternativeMediaList: item.alternativeMediaList,
+                    mediaAreas: item.mediaAreas,
+                    text: item.text,
+                    entities: item.entities,
+                    views: item.views,
+                    privacy: Stories.Item.Privacy(base: privacy.base, additionallyIncludePeers: privacy.additionallyIncludePeers),
+                    isPinned: item.isPinned,
+                    isExpired: item.isExpired,
+                    isPublic: privacy.base == .everyone,
+                    isCloseFriends: privacy.base == .closeFriends,
+                    isContacts: privacy.base == .contacts,
+                    isSelectedContacts: privacy.base == .nobody,
+                    isForwardingDisabled: item.isForwardingDisabled,
+                    isEdited: true,
+                    isMy: item.isMy,
+                    myReaction: item.myReaction,
+                    forwardInfo: item.forwardInfo,
+                    music: item.music,
+                    authorId: item.authorId,
+                    folderIds: item.folderIds
+            )
+            if let entry = CodableEntry(Stories.StoredItem.item(updated)) {
+                entries[index] = StoryItemsTableEntry(value: entry, id: id, expirationTimestamp: updated.expirationTimestamp, isCloseFriends: updated.isCloseFriends, isLiveStream: false)
+                transaction.setStoryItems(peerId: account.peerId, items: entries)
+                transaction.setStory(id: StoryId(peerId: account.peerId, id: id), value: entry)
+            }
+        } |> castError(EditStoryPrivacyError.self) |> ignoreValues
+    }
+
     return account.postbox.transaction { transaction -> [Api.InputPrivacyRule]? in
         return apiInputPrivacyRules(privacy: privacy, transaction: transaction)
     }

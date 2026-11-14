@@ -1,4 +1,5 @@
 import Foundation
+import ShareWithPeersScreen
 import UIKit
 import Display
 import ComponentFlow
@@ -389,6 +390,13 @@ private final class StoryContainerScreenComponent: Component {
         private var stealthModeTimer: Foundation.Timer?
         
         private let storyItemSharedState = StoryContentItem.SharedState()
+        var modalBackdropView: UIView? {
+            guard let slice = self.stateValue?.slice,
+                  let itemSet = self.visibleItemSetViews[slice.peer.id]?.view.view as? StoryItemSetContainerComponent.View else { return nil }
+            // This native clipped viewport shares the media frame/transform and sits
+            // above its navigation strip, so coverage includes the progress indicator.
+            return itemSet.controlsClippingView
+        }
         private var visibleItemSetViews: [EnginePeer.Id: ItemSetView] = [:]
         // Holds the item set views. It keeps this view's coordinate space (bounds origin = frame origin) and, on
         // iPhone Duo, clips the cube to the band beside the side strip.
@@ -2179,6 +2187,10 @@ private final class StoryContainerScreenComponent: Component {
 }
 
 public class StoryContainerScreen: ViewControllerComponentContainer, KeyShortcutResponder {
+    override public var modalPresentationBackdropView: UIView? {
+        guard self.isNodeLoaded else { return nil }
+        return (self.node.hostView.componentView as? StoryContainerScreenComponent.View)?.modalBackdropView
+    }
     public struct TransitionState: Equatable {
         public var sourceSize: CGSize
         public var destinationSize: CGSize
@@ -2285,6 +2297,11 @@ public class StoryContainerScreen: ViewControllerComponentContainer, KeyShortcut
         
         self.statusBar.statusBarStyle = .White
         self.navigationPresentation = .standaloneFlatModal
+        self.flatReceivesModalTransition = StoryAudienceUIHooks.configuration?(context) != nil
+        if self.flatReceivesModalTransition {
+            self.modalPresentationAdditionalTopInset = 13.0
+            self._hasGlassStyle = true
+        }
         self.blocksBackgroundWhenInOverlay = true
         self.automaticallyControlPresentationContextLayout = false
         self.supportedOrientations = ViewControllerSupportedOrientations(regularSize: .all, compactSize: [.portrait])
