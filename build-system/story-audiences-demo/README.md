@@ -7,7 +7,7 @@
 3. Double-click **Launch Story Audiences.command**. Or open Terminal in the extracted folder and run `python3 run-demo.py`.
 4. The helper selects/creates a dedicated **Story Audiences Demo** iPhone Simulator, installs the app and opens the original editor with a local photo.
 
-Requires Apple Silicon, Xcode with command-line tools selected, and an installed iOS27.2 Simulator runtime. First-time Xcode setup and Apple's license acceptance must be completed by the reviewer. Install the runtime through Xcode settings if the helper reports it missing. The script does not download a runtime or remove devices/data.
+Requires Apple Silicon, Xcode with command-line tools selected, and an installed iOS27.2 Simulator runtime. First-time Xcode setup and Apple's license acceptance must be completed by the reviewer. Install the runtime through Xcode settings if the helper reports it missing. The script does not download a runtime or remove devices/data. It copies fixture media into the Simulator app data container so ordinary relaunches keep their avatars.
 
 The app needs no Telegram account, Premium, API application or Telegram server access. It is a Simulator app: do not double-click Telegram.app or attempt to install it on a phone. For a different toolchain, use the source route below; only the listed environment was validated.
 

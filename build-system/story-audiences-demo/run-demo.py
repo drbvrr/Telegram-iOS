@@ -5,6 +5,7 @@ import hashlib
 import json
 import platform
 import plistlib
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -80,7 +81,10 @@ def main():
         run(['open', '-a', str(window)])
     subprocess.run(['xcrun', 'simctl', 'terminate', udid, bundle], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     run(['xcrun', 'simctl', 'install', udid, str(app)])
-    run(['xcrun', 'simctl', 'launch', udid, bundle, '--story-audiences-demo', '--story-audiences-assets', str(assets)])
+    container = Path(output(['xcrun', 'simctl', 'get_app_container', udid, bundle, 'data']))
+    installed_assets = container / 'Library/Application Support/StoryAudiencesDemoAssets'
+    shutil.copytree(assets, installed_assets, dirs_exist_ok=True)
+    run(['xcrun', 'simctl', 'launch', udid, bundle, '--story-audiences-demo', '--story-audiences-assets', str(installed_assets)])
     print('Story Audiences is running. Start with Next in the story editor.')
     print('Saved lists are retained. Device: ' + udid)
 

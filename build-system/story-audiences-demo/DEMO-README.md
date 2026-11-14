@@ -14,7 +14,7 @@ python3 run-demo.py
 
 The helper uses/creates a dedicated Story Audiences Demo iPhone17 Simulator and opens the native story editor. It does not download a runtime, erase a device or reset saved lists. `python3 run-demo.py --check` validates prerequisites without launching. `--device YOUR_UDID` selects an existing standard iOS27.2 Simulator.
 
-This is an iOS Simulator app, not a macOS app or a phone IPA. Do not launch Telegram.app directly. The prebuilt executable is arm64; see the source repository for rebuilding on another environment. Keep this folder in place, or rerun the helper after moving it so the fixture path is refreshed.
+This is an iOS Simulator app, not a macOS app or a phone IPA. Do not launch Telegram.app directly. The prebuilt executable is arm64; see the source repository for rebuilding on another environment. The helper copies fixture media into the Simulator app data container; ordinary app relaunches retain avatars even after moving the extracted folder. Keep the complete archive contents together if reinstalling.
 
 ## Walkthrough
 
