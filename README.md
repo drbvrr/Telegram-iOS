@@ -1,16 +1,17 @@
-# Story Audiences for Telegram iOS
+# Custom Lists: share stories with exactly the right people
 
-Reusable story audiences: create a named list, choose an icon, add people, and reuse it when publishing stories. Built with the original Telegram iOS media editor, privacy screen, contact picker, navigation, story viewer and publication animation.
+Build custom lists for the different circles in your life — coworkers, relatives, classmates — and pick the right one with a single tap when posting a story. Lists are invisible to their members: no badges, no notifications, no visible list names
 
-**[Download the offline Simulator demo](https://github.com/drbvrr/Telegram-iOS/releases)** · **[Run from Xcode](build-system/story-audiences-demo/README.md)** · **[Integration notes](docs/story-audiences/INTEGRATION.md)** · **[Patch](story-audiences-delivery/story-audiences-native.patch)**
+<img width="2243" height="1364" alt="image" src="https://github.com/user-attachments/assets/c131788a-599e-4c3e-89bb-29ac73a16e1a" />
 
-This is an unofficial feature prototype in a fork of [TelegramMessenger/Telegram-iOS](https://github.com/TelegramMessenger/Telegram-iOS). The demo runs locally with supplied contacts, avatars, chats and stories. It needs no Telegram account, Premium, API keys or connection to Telegram servers.
+## Why
+Telegram currently offers four audience options: Everyone, My Contacts, Close Friends, and Selected Users. Hand-picking viewers for every story is tedious, and Close Friends is too personal for some circles.
 
-| Share a story | Edit a list | Change an audience |
-| --- | --- | --- |
-| ![Story privacy](docs/story-audiences/screenshots/share-story.png) | ![List details](docs/story-audiences/screenshots/list-details.png) | ![Published story audience](docs/story-audiences/screenshots/published-story.png) |
+This concept replaces Selected Users with a Create List button. You build reusable segments once and pick them in a single tap. People you add won't know they are in a segment.
 
 ## Try it
+
+This is an unofficial feature prototype in a fork of [TelegramMessenger/Telegram-iOS](https://github.com/TelegramMessenger/Telegram-iOS). The demo runs locally with supplied contacts, avatars, chats and stories. It needs no Telegram account, Premium, API keys or connection to Telegram servers.
 
 The fastest route is the **StoryAudiences-offline-demo-arm64-ios27.2.zip** asset in Releases. Extract the whole archive and run **Launch Story Audiences.command**. Xcode and the iOS 27.2 Simulator runtime must already be installed; the app does not need compiling. Tested on an Apple Silicon Mac with Xcode 27.2 / iOS 27.2.
 
@@ -31,6 +32,8 @@ Walkthrough: **Next → Create List → select people → Next → name / icon �
 The UI and local audience/story behavior work in the original client. Production reuse points include `StoryAudienceStore`, `StoryAudienceConfiguration`, the original privacy/contact screens, the new list editor, and author story badge hooks.
 
 The supplied executable uses an isolated offline account and local privacy adapter. **Live-account wiring, remote privacy enforcement and cross-device list synchronization are not delivered or validated here.** [Integration notes](docs/story-audiences/INTEGRATION.md) identify what a connected client must wire to the existing Telegram engine. The demo bootstrap should remain isolated.
+
+**[Download the offline Simulator demo](https://github.com/drbvrr/Telegram-iOS/releases)** · **[Run from Xcode](build-system/story-audiences-demo/README.md)** · **[Integration notes](docs/story-audiences/INTEGRATION.md)** · **[Patch](story-audiences-delivery/story-audiences-native.patch)**
 
 ## Review the change
 
