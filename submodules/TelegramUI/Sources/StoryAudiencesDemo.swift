@@ -34,10 +34,10 @@ enum StoryAudiencesDemo {
     private static var presenter: ((ViewController) -> Void)?
 
     static let entries: [(Int64, String, String?)] = [
-        (7_880_001, "daria", "Rectangle 16"),
+        (7_880_001, "Pepe", "PepeProfile"),
         (7_880_002, "Sonya Litvinova", "Rectangle 8"),
         (7_880_003, "Marina", nil),
-        (7_880_004, "Pepe", "Rectangle 9"),
+        (7_880_004, "daria", "Rectangle 16"),
         (7_880_005, "Lena Orlova", "Rectangle 10"),
         (7_880_006, "Mom", nil),
         (7_880_007, "Egor Gusev", "Rectangle 11"),
@@ -71,9 +71,49 @@ enum StoryAudiencesDemo {
             }
             transaction.replaceContactPeerIds(contacts)
             seedChats(transaction: transaction)
+            seedPublishedStory(transaction: transaction, mediaBox: mediaBox)
             seedFriendsStories(transaction: transaction, mediaBox: mediaBox)
 
     }
+    private static let publishedStoryResourceId: Int64 = 7_889_003
+
+    private static func seedPublishedStory(transaction: Transaction, mediaBox: MediaBox) {
+        var items = transaction.getStoryItems(peerId: authorId)
+        func resourceId(for row: StoryItemsTableEntry) -> Int64? {
+            guard let stored = row.value.get(Stories.StoredItem.self), case let .item(item) = stored else { return nil }
+            return (item.media as? TelegramMediaImage)?.imageId.id
+        }
+
+        guard !items.contains(where: { resourceId(for: $0) == publishedStoryResourceId }),
+              let image = storyImage(named: "PublishedStory.jpg", resourceId: publishedStoryResourceId, mediaBox: mediaBox) else { return }
+
+        let previousIndex = items.firstIndex { resourceId(for: $0) == 7_889_002 }
+        let now = Int32(Date().timeIntervalSince1970)
+        let lastSeenId = transaction.getPeerStoryState(peerId: authorId)?.maxSeenId ?? 0
+        let id = previousIndex.map { items[$0].id } ?? max(now - 1, max(lastSeenId, items.last?.id ?? 0) + 1)
+        let item = Stories.Item(
+            id: id, timestamp: now, expirationTimestamp: Int32.max,
+            media: image, alternativeMediaList: [], mediaAreas: [], text: "", entities: [], views: nil,
+            privacy: Stories.Item.Privacy(base: .closeFriends, additionallyIncludePeers: []),
+            isPinned: true, isExpired: false, isPublic: false, isCloseFriends: true,
+            isContacts: false, isSelectedContacts: false, isForwardingDisabled: false,
+            isEdited: false, isMy: true, myReaction: nil, forwardInfo: nil, music: nil, authorId: nil, folderIds: nil
+        )
+        guard let entry = CodableEntry(Stories.StoredItem.item(item)) else { return }
+        let row = StoryItemsTableEntry(value: entry, id: id, expirationTimestamp: item.expirationTimestamp, isCloseFriends: true, isLiveStream: false)
+        if let previousIndex {
+            items[previousIndex] = row
+        } else {
+            items.append(row)
+        }
+        transaction.setStoryItems(peerId: authorId, items: items)
+        transaction.setStory(id: StoryId(peerId: authorId, id: id), value: entry)
+        transaction.setStoryItemsInexactMaxId(peerId: authorId, id: id, hasLiveItems: false)
+        if transaction.getPeerStoryState(peerId: authorId) == nil, let state = CodableEntry(Stories.PeerState(maxReadId: 0)) {
+            transaction.setPeerStoryState(peerId: authorId, state: StoredStoryPeerState(entry: state, maxSeenId: 0))
+        }
+    }
+
     private static func seedFriendsStories(transaction: Transaction, mediaBox: MediaBox) {
         guard let assets = assetsURL,
               let data = try? Data(contentsOf: assets.appendingPathComponent("StoryPhoto.jpg")) else { return }
@@ -102,12 +142,12 @@ enum StoryAudiencesDemo {
             (7_880_007, "Egor Gusev", "Could you send me the link to the presentation?", "Here you go — the final version is in our shared folder", false),
             (7_880_006, "Mom", "Did you get home okay?", "Just got in. Call you tomorrow ❤️", false),
             (7_880_101, "Alex Morgan", "Hi! We met at the design meetup last week.", "Great meeting you! Would love to see what you're working on", true),
-            (7_880_004, "Pepe", "This made me think of our trip 😂", "We really need to do that again", true),
+            (7_880_004, "daria", "This made me think of our trip 😂", "We really need to do that again", true),
             (7_880_005, "Lena Orlova", "Have you tried that little bakery by the park?", "Their almond croissants are amazing", true),
             (7_880_102, "Maya Chen", "Thanks for your feedback on my portfolio", "You're welcome! Good luck with the interview", false),
             (7_880_012, "sister", "Can you pick up my parcel on your way?", "Sure, send me the collection code", false),
             (7_880_009, "eva", "Sending you the playlist tonight", "You have to hear the last track", true),
-            (7_880_103, "Oliver Reed", "Hi Daria, is the desk still available?", "Yes, you can come by tomorrow evening", false),
+            (7_880_103, "Oliver Reed", "Hi Pepe, is the desk still available?", "Yes, you can come by tomorrow evening", false),
             (7_880_010, "Aleksey", "I pushed the latest changes", "The animation should feel much smoother now", true),
             (7_880_011, "Ilia", "Do you want to join us for a walk?", "Can't today, but let's do Sunday", false),
             (7_880_104, "Sophie Martin", "Your booking is confirmed for 3 pm", "Thank you! See you on Friday", false),
@@ -144,7 +184,9 @@ enum StoryAudiencesDemo {
         guard let destination = CGImageDestinationCreateWithData(data, "public.jpeg" as CFString, 1, nil) else { return nil }
         CGImageDestinationAddImage(destination, image, nil)
         guard CGImageDestinationFinalize(destination) else { return nil }
-        let resource = LocalFileMediaResource(fileId: id)
+        // New resource IDs invalidate previously cached avatars for the swapped profiles.
+        let resourceId = (id == 7_880_001 || id == 7_880_004) ? id + 20_000 : id
+        let resource = LocalFileMediaResource(fileId: resourceId)
         mediaBox.storeResourceData(resource.id, data: data as Data, synchronous: true)
         return [TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: Int32(image.width), height: Int32(image.height)), resource: resource, progressiveSizes: [], immediateThumbnailData: nil)]
     }
@@ -165,7 +207,7 @@ enum StoryAudiencesDemo {
             return
         }
         if preview && CommandLine.arguments.contains("--story-audiences-open-story") {
-            openStory(context: context, present: present, privacy: privacy)
+            openStory(context: context, present: present, privacy: EngineStoryPrivacy(base: .closeFriends, additionallyIncludePeers: []))
             return
         }
         if preview && !CommandLine.arguments.contains("--story-audiences-open-share") {
@@ -321,7 +363,9 @@ enum StoryAudiencesDemo {
 
     static func openEditor(context: AccountContext, present: @escaping (ViewController) -> Void) {
         guard let assets = assetsURL,
-              let image = UIImage(contentsOfFile: assets.appendingPathComponent("StoryPhoto.jpg").path) else { return }
+              let image = UIImage(contentsOfFile: assets.appendingPathComponent("EditorStory.jpg").path) else { return }
+        // A new demo story starts at Everyone, independently of the last edited story.
+        StoryAudienceStore.forAccount(context.account).select(nil)
         let dimensions = PixelDimensions(width: Int32(image.size.width * image.scale), height: Int32(image.size.height * image.scale))
         let editor = MediaEditorScreenImpl(context: context, mode: .storyEditor(remainingCount: 100), subject: .single(.image(image: image, dimensions: dimensions, additionalImage: nil, additionalImagePosition: .topLeft, fromCamera: false)), transitionIn: .noAnimation, transitionOut: { finished, _ in
             return finished ? publicationTransition?() : nil
@@ -337,13 +381,16 @@ enum StoryAudiencesDemo {
         let rendered: UIImage
         if case let .image(image, _) = result.media { rendered = image } else { rendered = fallbackImage }
         guard let data = rendered.jpegData(compressionQuality: 0.9) else { return }
-        let id = Int32(Date().timeIntervalSince1970) // stable local story identity
-        let resource = LocalFileMediaResource(fileId: Int64(id))
-        context.account.postbox.mediaBox.storeResourceData(resource.id, data: data, synchronous: true)
-        let image = TelegramMediaImage(imageId: MediaId(namespace: Namespaces.Media.LocalImage, id: Int64(id)), representations: [TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: Int32(rendered.size.width * rendered.scale), height: Int32(rendered.size.height * rendered.scale)), resource: resource, progressiveSizes: [], immediateThumbnailData: nil)], immediateThumbnailData: nil, reference: nil, partialReference: nil, flags: [])
         let privacy = result.options.privacy
-        let _ = (context.account.postbox.transaction { transaction -> Void in
+        let _ = (context.account.postbox.transaction { transaction -> Int32 in
             let now = Int32(Date().timeIntervalSince1970)
+            let lastId = transaction.getStoryItems(peerId: authorId).last?.id ?? 0
+            let lastSeenId = transaction.getPeerStoryState(peerId: authorId)?.maxSeenId ?? 0
+            // The viewer's read marker can outlive a deleted story.
+            let id = max(now, max(lastId, lastSeenId) + 1)
+            let resource = LocalFileMediaResource(fileId: Int64(id))
+            context.account.postbox.mediaBox.storeResourceData(resource.id, data: data, synchronous: true)
+            let image = TelegramMediaImage(imageId: MediaId(namespace: Namespaces.Media.LocalImage, id: Int64(id)), representations: [TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: Int32(rendered.size.width * rendered.scale), height: Int32(rendered.size.height * rendered.scale)), resource: resource, progressiveSizes: [], immediateThumbnailData: nil)], immediateThumbnailData: nil, reference: nil, partialReference: nil, flags: [])
             let viewerIds: [PeerId]
             if privacy.base == .nobody { viewerIds = Array(privacy.additionallyIncludePeers.prefix(4)) }
             else if privacy.base == .closeFriends {
@@ -362,7 +409,8 @@ enum StoryAudiencesDemo {
             }
             let (_, peers) = transaction.getAllStorySubscriptions(key: .filtered)
             transaction.replaceAllStorySubscriptions(key: .filtered, state: CodableEntry(Stories.SubscriptionsState(opaqueState: "offline", refreshId: 0, hasMore: false)), peerIds: peers)
-        } |> deliverOnMainQueue).startStandalone(completed: {
+            return id
+        } |> deliverOnMainQueue).startStandalone(next: { id in
             let base: String
             switch privacy.base { case .everyone: base = "everyone"; case .contacts: base = "contacts"; case .closeFriends: base = "closeFriends"; case .nobody: base = "nobody" }
             StoryAudienceStore.forAccount(context.account).publish(id: id, base: base, members: privacy.additionallyIncludePeers.map { $0.id._internalGetInt64Value() })
@@ -386,16 +434,20 @@ enum StoryAudiencesDemo {
         }
     }
 
-    private static func openStory(context: AccountContext, present: @escaping (ViewController) -> Void, privacy: EngineStoryPrivacy) {
+    private static func storyImage(named name: String, resourceId: Int64, mediaBox: MediaBox) -> TelegramMediaImage? {
         guard let assets = assetsURL,
-              let data = try? Data(contentsOf: assets.appendingPathComponent("StoryPhoto.jpg")),
+              let data = try? Data(contentsOf: assets.appendingPathComponent(name)),
               let source = CGImageSourceCreateWithData(data as CFData, nil),
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int,
-              let height = properties[kCGImagePropertyPixelHeight] as? Int else { return }
-        let resource = LocalFileMediaResource(fileId: 7_889_001)
-        context.account.postbox.mediaBox.storeResourceData(resource.id, data: data)
-        let image = TelegramMediaImage(imageId: MediaId(namespace: Namespaces.Media.LocalImage, id: 7_889_001), representations: [TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: Int32(width), height: Int32(height)), resource: resource, progressiveSizes: [], immediateThumbnailData: nil)], immediateThumbnailData: nil, reference: nil, partialReference: nil, flags: [])
+              let height = properties[kCGImagePropertyPixelHeight] as? Int else { return nil }
+        let resource = LocalFileMediaResource(fileId: resourceId)
+        mediaBox.storeResourceData(resource.id, data: data, synchronous: true)
+        return TelegramMediaImage(imageId: MediaId(namespace: Namespaces.Media.LocalImage, id: resourceId), representations: [TelegramMediaImageRepresentation(dimensions: PixelDimensions(width: Int32(width), height: Int32(height)), resource: resource, progressiveSizes: [], immediateThumbnailData: nil)], immediateThumbnailData: nil, reference: nil, partialReference: nil, flags: [])
+    }
+
+    private static func openStory(context: AccountContext, present: @escaping (ViewController) -> Void, privacy: EngineStoryPrivacy) {
+        guard let image = storyImage(named: "PublishedStory.jpg", resourceId: publishedStoryResourceId, mediaBox: context.account.postbox.mediaBox) else { return }
         let _ = (context.engine.data.get(TelegramEngine.EngineData.Item.Peer.Peer(id: authorId)) |> deliverOnMainQueue).startStandalone(next: { peer in
             guard let peer else { return }
             let content = StoryAudiencesLocalStoryContext(peer: peer, image: image, privacy: privacy)

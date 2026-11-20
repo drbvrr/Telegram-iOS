@@ -431,7 +431,16 @@ public extension ShareWithPeersScreen {
                         }
                     })
                     peers.insert(contentsOf: selectedPeers, at: 0)
-                    if storyAudiencesOfflineDemoEnabled && base == .nobody { peers.sort { $0.id < $1.id } }
+                    if storyAudiencesOfflineDemoEnabled && base == .nobody {
+                        // Presentation order in the demo contact picker; peer identities stay unchanged.
+                        let order: [Int64] = [7_880_004, 7_880_002, 7_880_007, 7_880_005, 7_880_008, 7_880_003, 7_880_006, 7_880_009, 7_880_010, 7_880_011, 7_880_012]
+                        let ranks = Dictionary(uniqueKeysWithValues: order.enumerated().map { ($0.element, $0.offset) })
+                        peers.sort {
+                            let lhs = ranks[$0.id.id._internalGetInt64Value()] ?? Int.max
+                            let rhs = ranks[$1.id.id._internalGetInt64Value()] ?? Int.max
+                            return lhs == rhs ? $0.id < $1.id : lhs < rhs
+                        }
+                    }
                     
                     let state = State(
                         peers: peers,

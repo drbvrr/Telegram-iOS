@@ -2,7 +2,7 @@
 
 Tested: Apple Silicon, Xcode 27.2, iOS 27.2 Simulator, iPhone 17 / 402×874pt. The prebuilt app is arm64 for iOS Simulator; it is not a device IPA or a macOS app.
 
-Latest UI build: revision68. Existing XCTest scenarios passed:
+Release build 76 built successfully and launched on the review simulator. The results below are historical UI coverage from build 68.
 
 | Scenario | Time |
 | --- | --- |

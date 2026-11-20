@@ -3176,7 +3176,9 @@ final class ShareWithPeersScreenComponent: Component {
             if component.audienceConfiguration != nil && (!component.stateContext.editing || (environment.controller() as? ShareWithPeersScreen)?.navigationPresentation == .modal) { navigationHeight += 6.0 }
             if component.audienceConfiguration != nil || (environment.controller() as? ShareWithPeersScreen)?.audiencePeopleTitle != nil {
                 self.navigationContainerView.layer.anchorPoint = .zero
-                self.navigationContainerView.bounds = CGRect(origin: .zero, size: CGSize(width: availableSize.width, height: navigationHeight))
+                // Keep the opaque picker backing in step with Search and the pinned Contacts header.
+                // An immediate bounds change covers the first row before the header finishes moving.
+                transition.setBounds(view: self.navigationContainerView, bounds: CGRect(origin: .zero, size: CGSize(width: availableSize.width, height: navigationHeight)))
             }
 
             
@@ -3195,7 +3197,11 @@ final class ShareWithPeersScreenComponent: Component {
                     inset = 1000.0
                 } else if case let .stories(editing, _) = component.stateContext.subject {
                     if editing {
-                        if component.audienceConfiguration != nil {
+                        if isPartialAudienceSheet {
+                            // The reference height fits four audiences plus Create List.
+                            // Removing an audience must shorten the sheet by one row as well.
+                            inset = 531.0 + CGFloat(component.categoryItems.count - 5) * categoryItemSize.height
+                        } else if component.audienceConfiguration != nil {
                             inset = 531.0 + CGFloat(max(0, component.categoryItems.count - 5)) * 68.0
                         } else {
                             inset = 383.0 + 10.0 + environment.safeInsets.bottom + 50.0 + footersTotalHeight
@@ -3298,7 +3304,7 @@ final class ShareWithPeersScreenComponent: Component {
                             ))
                         ),
                         isEnabled: true,
-                        displaysProgress: self.isCompleting,
+                        displaysProgress: isAudiencePeople ? false : self.isCompleting,
                         action: { [weak self] in
                             guard let self, !self.isCompleting, let component = self.component, let environment = self.environment, let controller = self.environment?.controller() as? ShareWithPeersScreen else {
                                 return

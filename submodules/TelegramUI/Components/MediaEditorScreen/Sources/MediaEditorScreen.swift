@@ -6907,7 +6907,7 @@ public final class MediaEditorScreenImpl: ViewController, MediaEditorScreen, UID
                     folderIds: []
                 )
             }
-        } else {
+        } else if !storyAudiencesOfflineDemoEnabled {
             let _ = combineLatest(
                 queue: Queue.mainQueue(),
                 mediaEditorStoredState(engine: self.context.engine),

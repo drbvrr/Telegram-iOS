@@ -13,6 +13,7 @@ repo = here.parents[1]
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument('--app', type=Path, required=True)
 parser.add_argument('--output', type=Path, required=True)
+parser.add_argument('--build-revision', type=int, required=True)
 args = parser.parse_args()
 app = args.app.resolve()
 info = plistlib.loads((app / 'Info.plist').read_bytes())
@@ -40,9 +41,9 @@ metadata = {
     'source': 'https://github.com/drbvrr/Telegram-iOS/tree/story-audiences',
     'sourceCommit': subprocess.check_output(['git', 'rev-parse', 'HEAD'], cwd=repo, text=True).strip(),
     'upstreamBase': '24638bc69bd083981b178dd1e7f921eebbf7fc46',
-    'verifiedUIRevision': 68,
+    'buildRevision': args.build_revision,
     'architecture': arch,
-    'testedRuntime': 'iOS 27.2 / iPhone 17 Simulator',
+    'simulatorRuntime': 'iOS 27.2 / iPhone 17 Simulator',
     'sdk': info.get('DTSDKName'),
     'bundleIdentifier': info['CFBundleIdentifier'],
     'appBinarySHA256': hashlib.sha256((app / 'Telegram').read_bytes()).hexdigest(),

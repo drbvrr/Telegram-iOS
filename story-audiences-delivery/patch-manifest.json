@@ -1,9 +1,10 @@
 {
   "base": "24638bc69bd083981b178dd1e7f921eebbf7fc46",
-  "files": 101,
+  "files": 104,
   "paths": [
     "README.md",
     "Telegram/BUILD",
+    "build-system/story-audiences-demo/Assets/Avatars/PepeProfile.png",
     "build-system/story-audiences-demo/Assets/Avatars/Rectangle 10.png",
     "build-system/story-audiences-demo/Assets/Avatars/Rectangle 11.png",
     "build-system/story-audiences-demo/Assets/Avatars/Rectangle 12.png",
@@ -13,6 +14,7 @@
     "build-system/story-audiences-demo/Assets/Avatars/Rectangle 16.png",
     "build-system/story-audiences-demo/Assets/Avatars/Rectangle 8.png",
     "build-system/story-audiences-demo/Assets/Avatars/Rectangle 9.png",
+    "build-system/story-audiences-demo/Assets/EditorStory.jpg",
     "build-system/story-audiences-demo/Assets/Icons/Book.svg",
     "build-system/story-audiences-demo/Assets/Icons/Car.svg",
     "build-system/story-audiences-demo/Assets/Icons/Check.svg",
@@ -35,6 +37,7 @@
     "build-system/story-audiences-demo/Assets/Icons/Verified.svg",
     "build-system/story-audiences-demo/Assets/Icons/Vine.svg",
     "build-system/story-audiences-demo/Assets/Icons/Work.svg",
+    "build-system/story-audiences-demo/Assets/PublishedStory.jpg",
     "build-system/story-audiences-demo/Assets/StoryPhoto.jpg",
     "build-system/story-audiences-demo/DEMO-README.md",
     "build-system/story-audiences-demo/Launch Story Audiences.command",
@@ -104,8 +107,8 @@
     "submodules/TelegramUI/Sources/StoryAudiencesDemo.swift",
     "submodules/TelegramUI/Sources/TelegramRootController.swift"
   ],
-  "bytes": 12632678,
-  "sha256": "793d7621519f8b373aa0cd875b392b119745a98bf14264abd5e6fa6d1fdb3992",
+  "bytes": 15290868,
+  "sha256": "cef2d2e8babab2132f1b5e58b06e4ef78928062c2153867f0515dfb6a98b6fd2",
   "checks": [
     "clean-base-index apply",
     "working-tree reverse"

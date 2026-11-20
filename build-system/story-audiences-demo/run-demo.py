@@ -38,7 +38,8 @@ def main():
     bundle = info.get('CFBundleIdentifier')
     if bundle != 'design.storyaudiences.native':
         raise SystemExit('Expected the isolated design.storyaudiences.native demo bundle.')
-    if not (assets / 'StoryPhoto.jpg').is_file() or not list((assets / 'Avatars').glob('*.png')):
+    required_assets = ('StoryPhoto.jpg', 'EditorStory.jpg', 'PublishedStory.jpg', 'Avatars/PepeProfile.png')
+    if any(not (assets / relative).is_file() for relative in required_assets):
         raise SystemExit('Fixture assets are missing. Keep the app, Assets and scripts together.')
     manifest = root / 'BUILD-INFO.json'
     if manifest.is_file():

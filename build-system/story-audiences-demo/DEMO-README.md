@@ -22,14 +22,14 @@ This is an iOS Simulator app, not a macOS app or a phone IPA. Do not launch Tele
 2. Tap Create List, select contacts and tap Next.
 3. Enter a list name, choose an icon and save with the checkmark.
 4. The new list is automatically selected. Tap Post.
-5. On Chats, open My Story, then tap the top audience badge.
+5. On Chats, open My Story and advance to your newly published story if needed. Tap its audience badge.
 6. Choose another audience and confirm Move. You can also edit the list or open the original viewers interface.
 
 Everyone, My Contacts and Close Friends remain. Custom lists persist locally. Changing membership updates linked local stories; deleting a list makes linked stories visible to Everyone. No real contacts are accessed and no stories are published to Telegram.
 
 ## Included
 
-The verified revision68 app, the designer's supplied avatars/icons/photo, launch helper, build/source metadata, and attribution notices. There is no logged-in account database in this archive. The fixtures create a synthetic account, contacts, realistic English chat previews and friend stories.
+The Simulator app, fixture media, launch helper, build metadata and attribution notices. A fresh launch creates the demo profile Pepe, contacts, chats and a Close Friends story. The audience picker starts with Everyone selected and three built-in audiences.
 
 The UI and local behavior are implemented in original Telegram code. Production account wiring, remote privacy enforcement and synchronization across devices require the connected-client adapter described in the source repository.
 

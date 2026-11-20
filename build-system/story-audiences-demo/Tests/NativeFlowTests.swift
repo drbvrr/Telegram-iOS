@@ -23,6 +23,20 @@ final class NativeFlowTests: XCTestCase {
         let image = XCTAttachment(screenshot: app.screenshot()); image.name = name; image.lifetime = .keepAlways; add(image)
         let hierarchy = XCTAttachment(string: app.debugDescription); hierarchy.name = name + "-accessibility"; hierarchy.lifetime = .keepAlways; add(hierarchy)
     }
+    func testFigmaDefaultFirstPersonHeaderMotion() throws {
+        visible("Next", timeout: 90).tap()
+        visible("Create List").tap()
+        let people = app.otherElements["storyAudiencePeopleScreen"]
+        capture("visual-first-person-empty")
+        visible("Sonya Litvinova", in: people).tap()
+        capture("visual-first-person-selected")
+        visible("Deselect All", in: people).tap()
+        capture("visual-first-person-cleared")
+        visible("Marina", in: people).tap()
+        capture("visual-first-person-reselected")
+        visible("daria", in: people).tap()
+        capture("visual-first-person-second-selected")
+    }
     func testFigmaDefaultBackdropDrag() throws {
         let next = visible("Next", timeout: 90)
         capture("defect-source-uncovered")
@@ -170,12 +184,12 @@ final class NativeFlowTests: XCTestCase {
         let people = app.otherElements["storyAudiencePeopleScreen"]
         _ = visible("Deselect All", in: people)
         capture("revision-people-empty")
-        for person in ["Sonya Litvinova", "Marina", "Pepe", "Egor Gusev", "Rita PM"] { visible(person, in: people).tap() }
+        for person in ["Sonya Litvinova", "Marina", "daria", "Egor Gusev", "Rita PM"] { visible(person, in: people).tap() }
         capture("revision-people-selected")
         visible("Remove Pepe", in: people).tap()
         let removedToken = expectation(for: NSPredicate(format: "exists == false"), evaluatedWith: people.buttons["Remove Pepe"])
         wait(for: [removedToken], timeout: 5)
-        visible("Pepe", in: people).tap()
+        visible("daria", in: people).tap()
         let headerY = visible("Deselect All", in: people).frame.minY
         app.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.75)).press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.7, dy: 0.41)))
         XCTAssertEqual(visible("Deselect All", in: people).frame.minY, headerY, accuracy: 1)
@@ -242,7 +256,7 @@ final class NativeFlowTests: XCTestCase {
         capture("figma-default-sheet")
         visible("Create List").tap()
         let people = app.otherElements["storyAudiencePeopleScreen"]
-        for person in ["Sonya Litvinova", "Marina", "Pepe", "Egor Gusev", "Rita PM"] { visible(person, in: people).tap() }
+        for person in ["Sonya Litvinova", "Marina", "daria", "Egor Gusev", "Rita PM"] { visible(person, in: people).tap() }
         visible("Next", in: people).tap()
         let field = app.textFields["storyAudienceName"]
         XCTAssertTrue(field.waitForExistence(timeout: 15))
@@ -262,7 +276,7 @@ final class NativeFlowTests: XCTestCase {
         let sheet = app.otherElements["storyAudienceSheet"]
         XCTAssertTrue(sheet.waitForExistence(timeout: 20))
         visible("Select Everyone", in: sheet).tap()
-        let initialProfileY = visible("daria", in: sheet).frame.minY
+        let initialProfileY = visible("Pepe", in: sheet).frame.minY
         capture("sheet-initial")
         sheet.swipeUp(); sheet.swipeUp(); sheet.swipeUp()
         let profile = sheet.descendants(matching: .any).matching(NSPredicate(format: "label == 'Save to My Profile'")).firstMatch
