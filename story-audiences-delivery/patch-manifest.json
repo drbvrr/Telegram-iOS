@@ -107,8 +107,8 @@
     "submodules/TelegramUI/Sources/StoryAudiencesDemo.swift",
     "submodules/TelegramUI/Sources/TelegramRootController.swift"
   ],
-  "bytes": 15290868,
-  "sha256": "cef2d2e8babab2132f1b5e58b06e4ef78928062c2153867f0515dfb6a98b6fd2",
+  "bytes": 17166915,
+  "sha256": "bfa992e991859d536c04e7a11db72ddf07255cd3cafa08ab057e6c0da4450993",
   "checks": [
     "clean-base-index apply",
     "working-tree reverse"

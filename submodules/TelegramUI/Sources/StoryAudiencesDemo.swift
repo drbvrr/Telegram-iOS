@@ -75,7 +75,7 @@ enum StoryAudiencesDemo {
             seedFriendsStories(transaction: transaction, mediaBox: mediaBox)
 
     }
-    private static let publishedStoryResourceId: Int64 = 7_889_003
+    private static let publishedStoryResourceId: Int64 = 7_889_004
 
     private static func seedPublishedStory(transaction: Transaction, mediaBox: MediaBox) {
         var items = transaction.getStoryItems(peerId: authorId)
@@ -87,13 +87,26 @@ enum StoryAudiencesDemo {
         guard !items.contains(where: { resourceId(for: $0) == publishedStoryResourceId }),
               let image = storyImage(named: "PublishedStory.jpg", resourceId: publishedStoryResourceId, mediaBox: mediaBox) else { return }
 
-        let previousIndex = items.firstIndex { resourceId(for: $0) == 7_889_002 }
+        let previousIndex = items.firstIndex {
+            guard let id = resourceId(for: $0) else { return false }
+            return id == 7_889_002 || id == 7_889_003
+        }
+        // These demo contacts have already watched the Close Friends story.
+        let viewerIds: [PeerId] = [7_880_009, 7_880_010, 7_880_007].map {
+            PeerId(namespace: Namespaces.Peer.CloudUser, id: PeerId.Id._internalFromInt64Value($0))
+        }
+        for peerId in viewerIds {
+            if let user = transaction.getPeer(peerId) as? TelegramUser, !user.flags.contains(.isCloseFriend) {
+                transaction.updatePeersInternal([user.withUpdatedFlags(user.flags.union(.isCloseFriend))], update: { _, updated in updated })
+            }
+        }
+        let views = Stories.Item.Views(seenCount: viewerIds.count, reactedCount: 0, forwardCount: 0, seenPeerIds: viewerIds, reactions: [], hasList: true)
         let now = Int32(Date().timeIntervalSince1970)
         let lastSeenId = transaction.getPeerStoryState(peerId: authorId)?.maxSeenId ?? 0
         let id = previousIndex.map { items[$0].id } ?? max(now - 1, max(lastSeenId, items.last?.id ?? 0) + 1)
         let item = Stories.Item(
             id: id, timestamp: now, expirationTimestamp: Int32.max,
-            media: image, alternativeMediaList: [], mediaAreas: [], text: "", entities: [], views: nil,
+            media: image, alternativeMediaList: [], mediaAreas: [], text: "", entities: [], views: views,
             privacy: Stories.Item.Privacy(base: .closeFriends, additionallyIncludePeers: []),
             isPinned: true, isExpired: false, isPublic: false, isCloseFriends: true,
             isContacts: false, isSelectedContacts: false, isForwardingDisabled: false,
@@ -109,8 +122,13 @@ enum StoryAudiencesDemo {
         transaction.setStoryItems(peerId: authorId, items: items)
         transaction.setStory(id: StoryId(peerId: authorId, id: id), value: entry)
         transaction.setStoryItemsInexactMaxId(peerId: authorId, id: id, hasLiveItems: false)
-        if transaction.getPeerStoryState(peerId: authorId) == nil, let state = CodableEntry(Stories.PeerState(maxReadId: 0)) {
-            transaction.setPeerStoryState(peerId: authorId, state: StoredStoryPeerState(entry: state, maxSeenId: 0))
+        // Reset Pepe's read marker once when replacing a previously viewed fixture.
+        let peerState = transaction.getPeerStoryState(peerId: authorId)
+        if peerState == nil || lastSeenId >= id {
+            let maxReadId = min(lastSeenId, id - 1)
+            if let entry = CodableEntry(Stories.PeerState(maxReadId: maxReadId)) {
+                transaction.setPeerStoryState(peerId: authorId, state: StoredStoryPeerState(entry: entry, maxSeenId: maxReadId))
+            }
         }
     }
 
